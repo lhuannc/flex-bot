@@ -19,18 +19,26 @@ function getClient() {
 }
 
 /**
- * Obtém uma guilda (servidor) por ID ou a guilda principal do .env
+ * Obtém uma guilda (servidor) por ID ou a guilda principal do .env / cache conectado
  * @param {string} [guildId] 
  */
 async function getGuild(guildId = null) {
   if (!discordClient) return null;
-  const targetGuildId = guildId || process.env.GUILD_ID;
-  if (!targetGuildId) return null;
+  let targetGuildId = guildId || process.env.GUILD_ID;
+
+  // Se nenhum GUILD_ID foi passado ou configurado no .env, pega o primeiro servidor onde o bot está instalado
+  if (!targetGuildId || targetGuildId.trim() === '') {
+    const firstGuild = discordClient.guilds.cache.first();
+    if (firstGuild) return firstGuild;
+    return null;
+  }
 
   try {
     return await discordClient.guilds.fetch(targetGuildId);
   } catch (error) {
-    console.error(`[discordService] Erro ao buscar Guild (${targetGuildId}):`, error.message);
+    console.warn(`[discordService] Aviso ao buscar Guild (${targetGuildId}), usando servidor conectado padrão:`, error.message);
+    const firstGuild = discordClient.guilds.cache.first();
+    if (firstGuild) return firstGuild;
     return null;
   }
 }
@@ -123,7 +131,7 @@ async function assignRoleToUser(userId, roleId, guildId = null) {
   try {
     const guild = await getGuild(guildId);
     if (!guild) {
-      return { success: false, message: `Servidor (${guildId || 'Padrão'}) não foi encontrado pelo bot.` };
+      return { success: false, message: `Servidor não foi encontrado pelo bot.` };
     }
 
     const member = await guild.members.fetch(userId).catch(() => null);
