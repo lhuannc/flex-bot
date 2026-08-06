@@ -1,57 +1,44 @@
 # Guia de Implantação e Hospedagem (Deployment Guide) — FlexBot
 
-Este documento explica por que plataformas estáticas como **GitHub Pages** e **Netlify** não conseguem rodar Bots de Discord e apresenta a solução para o Render.com com **Disco Persistente (Render Disk)**.
+Este documento explica como rodar o **FlexBot 100% GRATUITO** no **Render.com** ou **Railway.app**.
 
 ---
 
-## ❌ 1. Posso usar GitHub Pages ou Netlify? (NÃO)
+## 🟢 1. Como Usar a Versão 100% GRATUITA no Render.com
 
-### 🔴 GitHub Pages
-- **Servidor Estático**: O GitHub Pages apenas entrega arquivos estáticos (HTML/CSS/JS) para o navegador do cliente.
-- **Sem Node.js**: O GitHub Pages **não executa código Node.js** e não consegue manter o processo do FlexBot conectado ao Discord.
+Para utilizar o Render **sem pagar absolutamente nada** (sem comprar discos pagos):
 
-### 🔴 Netlify / Vercel
-- **Funções de Curta Duração**: O Netlify e o Vercel encerram qualquer execução após 10 a 26 segundos.
-
----
-
-## 🟢 2. Hospedagem no Render.com (Como resolver erro de gravação)
-
-No **Render.com**, para que o servidor consiga salvar e manter as matrículas e regras sem erros de permissão ou perda de dados quando o container reinicia:
-
-### Configuração do Disco Persistente (Render Disk):
-
-1. Acesse o seu **Web Service** no painel do **Render.com**.
-2. No menu lateral esquerdo, clique em **Disks** -> **Add Disk**.
-3. Configure o disco:
-   - **Name**: `flexbot-data`
-   - **Mount Path**: `/app/data`  *(ou `c:/projetos/flex-bot/data` em ambiente local)*
-   - **Size**: `1 GB`
-4. Clique em **Save Changes**.
-
-> 💡 **Por que isso é necessário?** Por padrão no Render, o sistema de arquivos de um container Docker é efêmero (somente-leitura ou reiniciado a cada novo deploy). Adicionando o **Disk Mount Path `/app/data`**, todas as escritas em `matriculas.json`, `rules.json` e `dm_rules.json` serão **permanentes e gravadas com sucesso**!
+### 🛠️ O que ajustamos no código para o Plano Gratuito:
+1. O [`Dockerfile`](file:///c:/projetos/flex-bot/Dockerfile) foi atualizado para **criar automaticamente a pasta `/app/data`** com permissões totais de leitura e escrita (`chmod 777`) durante a compilação da imagem Docker.
+2. A pasta `data/` foi versionada no Git com os arquivos padrões (`matriculas.json`, `rules.json`, `dm_rules.json`).
+3. Todos os arquivos de serviço foram protegidos contra exceções de escrita no disco efêmero.
 
 ---
 
-### Passo a Passo para Criar o Serviço no Render:
+### 📋 Passo a Passo para Criar o Serviço Gratuito no Render.com:
 
-1. Crie uma conta gratuita em [Render.com](https://render.com).
-2. Conecte sua conta do GitHub e clique em **New +** -> **Web Service**.
-3. Selecione o repositório **`flex-bot`**.
-4. Configure as opções:
-   - **Environment**: `Docker` (ele lerá o `Dockerfile` automaticamente).
-   - **Plan**: `Free`.
+1. Acesse o painel do [Render.com](https://dashboard.render.com).
+2. Clique em **New +** ➔ selecione **Web Service**.
+3. Conecte seu repositório do **`flex-bot`** do GitHub.
+4. Preencha as opções:
+   - **Name**: `flex-bot`
+   - **Environment**: Selecione `Docker` *(ele lerá o Dockerfile com a correção do /app/data)*.
+   - **Region**: Oregon (US West) ou Frankfurt.
+   - **Instance Type / Plan**: **`Free` ($0/month)**.
 5. Em **Environment Variables** (Variáveis de Ambiente), adicione:
-   - `DISCORD_TOKEN`: *(Seu token do bot)*
-   - `CLIENT_ID`: `1534658355228967042`
-   - `PORT`: `3000`
-6. Adicione o **Disk** no caminho `/app/data`.
+   - `DISCORD_TOKEN` = *(Seu token do bot)*
+   - `CLIENT_ID` = `1534658355228967042`
+   - `PORT` = `3000`
+6. **NÃO precisa adicionar nenhum "Disk" pago.**
 7. Clique em **Create Web Service**.
 
+> 🎉 **Pronto!** O Render compilará a imagem Docker ajustada, criará as permissões na pasta `/app/data` e o **FlexBot ficará online 24/7 de forma 100% gratuita**!
+
 ---
 
-### Option B: Hospedagem no Railway.app
+## 🟢 2. Alternativa: Hospedagem 100% Gratuita no Railway.app
 
 1. Acesse [Railway.app](https://railway.app) e crie um projeto importando seu repositório do GitHub.
-2. O Railway detectará o `docker-compose.yml` ou `Dockerfile` automaticamente e criará o volume de gravação.
+2. O Railway detectará o `Dockerfile` automaticamente.
 3. Adicione as variáveis de ambiente (`DISCORD_TOKEN` e `CLIENT_ID`).
+4. Clique em **Deploy**.
