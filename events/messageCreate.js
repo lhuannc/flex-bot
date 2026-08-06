@@ -30,42 +30,38 @@ module.exports = {
     if (!message.guild) {
       console.log(`[MessageCreate DM] Recebida DM do usuário ${message.author.tag} (${userId}): "${content}"`);
 
-      const triggers = dmTriggerService.getDMTriggers();
-
-      // 1. Verifica se a mensagem é uma saudação por Palavra-Chave ("oi", "olá", "ajuda", etc)
-      if (dmTriggerService.isKeywordMatch(content)) {
-        const rawGreeting = triggers.keywordGreeting?.message || '👋 **Olá {user}!** Por favor envie sua matrícula de 8 dígitos para liberar seu cargo de acesso.';
-        const formattedGreeting = formatMessageTemplate(rawGreeting, userId);
-        await message.reply(formattedGreeting);
-        return;
-      }
-
-      // 2. Tenta processar via URA em Etapas
+      // 1. Tenta processar via URA em Etapas (Menu Principal, Submenu, Aguardando Matrícula ou Palavras-Chave de Menu)
       const handledByIVR = await ivrService.processIVRMessage(message);
       if (handledByIVR) return;
 
-      // 3. Processa via correspondência de regra direta
+      // 2. Se não foi capturado por opção da URA, avalia validação direta de matrícula
       const result = ruleService.evaluateRules(content, null, true, null);
 
       if (result.success) {
         const roleId = result.roleIdToAssign || process.env.ROLE_ID;
         const targetGuildId = result.guildIdToAssign || process.env.GUILD_ID;
 
-        const successText = formatMessageTemplate(result.message, userId);
-
+        let roleName = '';
         if (roleId) {
           const roleResult = await discordService.assignRoleToUser(userId, roleId, targetGuildId);
           if (roleResult.success) {
-            await message.reply(`${successText}\n\n🎉 **Cargo atribuído com sucesso no servidor!**`);
+            const guild = await discordService.getGuild(targetGuildId);
+            const role = guild ? await guild.roles.fetch(roleId).catch(() => null) : null;
+            roleName = role ? role.name : 'Cargo de Acesso';
+            await message.reply(`✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada com sucesso e seu cargo **${roleName}** foi atribuído.`);
           } else {
-            await message.reply(`${successText}\n\n⚠️ *Nota: Matrícula validada, mas não foi possível aplicar o cargo no servidor (${roleResult.message}).*`);
+            await message.reply(`✅ **Matrícula Validada!** Matrícula **${content}** confirmada (${roleResult.message}).`);
           }
         } else {
-          await message.reply(successText);
+          await message.reply(`✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada.`);
         }
       } else {
-        const errorText = formatMessageTemplate(result.message, userId);
+        // Se a matrícula não foi encontrada e o texto não era uma opção da URA, exibe mensagem clara + apresenta o menu da URA
+        const errorText = `❌ **Matrícula "${content}" não encontrada na base.**\nVerifique se os 8 números foram digitados corretamente.`;
         await message.reply(errorText);
+
+        // Apresenta o Menu da URA para orientar o usuário
+        await ivrService.sendRootIVRMenu(message.author, '💡 **Por favor, escolha uma das opções do menu de atendimento:**');
       }
       return;
     }
@@ -77,7 +73,7 @@ module.exports = {
     const guildId = message.guild.id;
     const guildName = message.guild.name;
 
-    // A. Verificação de Gatilho: Primeira Mensagem / Post em Canal Específico enviando DM
+    // A. Verificação de Gatilho: Post em canal de boas-vindas enviando DM
     const triggers = dmTriggerService.getDMTriggers();
     if (triggers.channelFirstPost && triggers.channelFirstPost.enabled && triggers.channelFirstPost.channelId === channelId) {
       const rawMsg = triggers.channelFirstPost.message || '👋 **Olá {user}!** Vimos que você enviou uma mensagem no canal. Por favor responda aqui com sua matrícula para validar seu acesso.';
@@ -104,7 +100,6 @@ module.exports = {
         const roleId = result.roleIdToAssign || process.env.ROLE_ID;
         const targetGuildId = result.guildIdToAssign || guildId;
 
-        // Apaga a mensagem contendo o código digitado pelo usuário
         await message.delete().catch(() => {});
 
         let roleName = '';

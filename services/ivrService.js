@@ -76,7 +76,13 @@ async function processIVRMessage(message) {
     const result = ruleService.evaluateMatch(content);
 
     if (result.success) {
-      const roleId = cons.roleId || pending.roleId || process.env.ROLE_ID;
+      // Busca inteligente de Role ID (Opção da URA -> Regras Ativas -> .env)
+      let roleId = cons.roleId || pending.roleId || process.env.ROLE_ID;
+      if (!roleId) {
+        const activeRule = ruleService.getRules().find(r => r.active && r.roleId);
+        if (activeRule) roleId = activeRule.roleId;
+      }
+
       const targetGuildId = cons.guildId || pending.guildId || process.env.GUILD_ID;
 
       if (roleId) {
@@ -107,7 +113,7 @@ async function processIVRMessage(message) {
 
       clearSession(userId);
     } else {
-      await message.reply(`❌ **Matrícula não encontrada.** Verifique os números digitados e tente novamente:`);
+      await message.reply(`❌ **Matrícula "${content}" não encontrada na base.** Verifique os 8 números digitados e tente novamente:`);
     }
     return true;
   }
@@ -135,7 +141,7 @@ async function processIVRMessage(message) {
     return await executeOptionConsequences(message, session, rootOption);
   }
 
-  // Se o comando/texto for uma palavra-chave ("oi", "menu", "ajuda"), exibe o menu principal
+  // Se o comando/texto for uma palavra-chave ("oi", "menu", "ajuda"), exibe o menu principal da URA
   const lowerContent = content.toLowerCase();
   if (['oi', 'olá', 'ola', 'ajuda', 'menu', 'iniciar', 'início'].includes(lowerContent)) {
     session.step = 'ROOT';

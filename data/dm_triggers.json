@@ -3,6 +3,10 @@
     "enabled": true,
     "message": "👋 **Seja bem-vindo(a) ao servidor!**"
   },
+  "existingMembersBroadcast": {
+    "enabled": true,
+    "message": ""
+  },
   "keywordGreeting": {
     "enabled": true,
     "keywords": [
