@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlexBot - Prefeitura do Rio (2025)</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation - Prefeitura do Rio 2025 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-icon">
+          <i class="fa-solid fa-landmark"></i>
+        </div>
+        <div class="brand-text">
+          <h2>FlexBot<span class="triangulo-ponto"></span></h2>
+          <span>Prefeitura do Rio 2025</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-tab="overview-tab" id="btn-tab-overview">
+          <i class="fa-solid fa-chart-pie"></i> Visão Geral
+        </button>
+        <button class="nav-btn" data-tab="rules-tab" id="btn-tab-rules">
+          <i class="fa-solid fa-hashtag"></i> Regras de Canais
+        </button>
+        <button class="nav-btn" data-tab="welcome-tab" id="btn-tab-welcome">
+          <i class="fa-solid fa-sitemap"></i> Regras de DM & URA Multi-Nível
+        </button>
+        <button class="nav-btn" data-tab="database-tab" id="btn-tab-database">
+          <i class="fa-solid fa-database"></i> Base de Matrículas
+        </button>
+        <button class="nav-btn" data-tab="dm-tab" id="btn-tab-dm">
+          <i class="fa-solid fa-envelope-open-text"></i> Disparo de DMs
+        </button>
+      </nav>
+
+      <div class="bot-status-card">
+        <div class="status-indicator online" id="bot-status-badge"></div>
+        <div class="bot-status-info">
+          <span class="status-title" id="bot-username">Conectando...</span>
+          <span class="status-sub" id="bot-guild">Buscando servidor...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Header Bar -->
+      <header class="top-header">
+        <div class="header-title">
+          <h1 id="page-title">Visão Geral do FlexBot<span class="triangulo-ponto"></span></h1>
+          <p id="page-subtitle">Sistema oficial de validação de matrículas corporativas da Prefeitura do Rio.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" id="btn-refresh"><i class="fa-solid fa-arrows-rotate"></i> Atualizar Dados</button>
+        </div>
+      </header>
+
+      <!-- TAB 1: OVERVIEW -->
+      <section class="tab-content active" id="overview-tab">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon purple">
+              <i class="fa-solid fa-id-card"></i>
+            </div>
+            <div class="stat-data">
+              <span class="stat-value" id="stat-matriculas">0</span>
+              <span class="stat-label">Matrículas Autorizadas</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon cyan">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div class="stat-data">
+              <span class="stat-value" id="stat-regras-ativas">0</span>
+              <span class="stat-label">Regras Ativas</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="stat-data">
+              <span class="stat-value" id="stat-bot-online">Online</span>
+              <span class="stat-label">Status da Conexão</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-circle-info"></i> Como funciona a validação pela base de matrículas?<span class="triangulo-ponto"></span></h3>
+          </div>
+          <div class="card-body">
+            <div class="workflow-steps">
+              <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-desc">
+                  <strong>Recepção da Matrícula</strong>
+                  <p>O usuário envia o código no canal autorizado do servidor ou responde a mensagem privada (DM) do FlexBot.</p>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-desc">
+                  <strong>Consulta à Base (`matriculas.json`)</strong>
+                  <p>O FlexBot consulta se a matrícula consta na base autorizada oficial da Prefeitura do Rio.</p>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-desc">
+                  <strong>Concessão do Cargo no Servidor</strong>
+                  <p>Caso a matrícula seja válida, o cargo (Role) parametrizado na regra é atribuído automaticamente.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: REGRAS DE CANAIS -->
+      <section class="tab-content" id="rules-tab">
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-hashtag"></i> Regras de Automação de Canais<span class="triangulo-ponto"></span></h3>
+              <p>Defina regras exclusivas para validação de matrículas em canais de texto do Discord.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-add-rule"><i class="fa-solid fa-plus"></i> Nova Regra de Canal</button>
+          </div>
+          <div class="card-body">
+            <div id="rules-container" class="rules-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2.5: RULE EDITOR PAGE -->
+      <section class="tab-content" id="rule-editor-tab">
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3 id="rule-editor-title"><i class="fa-solid fa-pen-to-square"></i> Cadastrar Regra de Canal<span class="triangulo-ponto"></span></h3>
+              <p>Configure o servidor, cargo, canal exclusivo, tempo de auto-deleção e mensagens de resposta.</p>
+            </div>
+            <button class="btn btn-outline" id="btn-back-to-rules"><i class="fa-solid fa-arrow-left"></i> Voltar para Lista de Regras</button>
+          </div>
+          <div class="card-body">
+            <form id="form-rule" class="form-grid-page">
+              <input type="hidden" id="rule-id">
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rule-name">Nome da Regra *</label>
+                  <input type="text" id="rule-name" required placeholder="Ex: Validação Canal Oficial #validação">
+                </div>
+
+                <div class="form-group">
+                  <label for="rule-description">Descrição</label>
+                  <input type="text" id="rule-description" placeholder="Ex: Regra exclusiva para o canal oficial de matrículas">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <!-- SERVIDOR DISCORD -->
+                <div class="form-group">
+                  <label for="rule-guild-id">Servidor do Discord (Guild) *</label>
+                  <select id="rule-guild-id">
+                    <option value="">Carregando servidores do Discord...</option>
+                  </select>
+                </div>
+
+                <!-- CARGO A ATRIBUIR -->
+                <div class="form-group">
+                  <label for="rule-role-id">Cargo a Atribuir (Role) *</label>
+                  <select id="rule-role-id">
+                    <option value="">Selecione um servidor primeiro...</option>
+                  </select>
+                </div>
+
+                <!-- CANAL ESPECÍFICO DO DISCORD -->
+                <div class="form-group">
+                  <label for="rule-channel-id">Canal Específico Autorizado *</label>
+                  <select id="rule-channel-id" required>
+                    <option value="">Selecione um servidor primeiro...</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- TEMPO DE AUTO-DELEÇÃO DA MENSAGEM NO CANAL -->
+              <div class="form-group">
+                <label for="rule-delete-delay">Tempo para Auto-Deletar a Mensagem de Resposta (em segundos) *</label>
+                <input type="number" id="rule-delete-delay" min="0" max="3600" value="10" required placeholder="Ex: 10 (ou 0 para não deletar)">
+                <small>💡 Digite <strong>0</strong> se quiser que a mensagem de resposta permaneça no canal sem ser apagada.</small>
+              </div>
+
+              <!-- MENSAGENS DE RESPOSTA DO CANAL CUSTOMIZÁVEIS -->
+              <div class="form-group">
+                <label for="rule-success-msg">Mensagem de Resposta do Canal (Sucesso) *</label>
+                <textarea id="rule-success-msg" rows="2" required placeholder="✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído."></textarea>
+                <small>Dica de Tags: <code>{user}</code> menciona o usuário, <code>{role}</code> exibe o cargo e <code>{server}</code> o nome do servidor.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="rule-error-msg">Mensagem de Resposta do Canal (Erro) *</label>
+                <textarea id="rule-error-msg" rows="2" required placeholder="❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados."></textarea>
+                <small>Dica de Tags: <code>{user}</code> menciona o usuário e <code>{server}</code> o nome do servidor.</small>
+              </div>
+
+              <div class="form-group checkbox-group">
+                <label class="switch">
+                  <input type="checkbox" id="rule-active" checked>
+                  <span class="slider round"></span>
+                </label>
+                <span>Regra Ativa</span>
+              </div>
+
+              <div class="page-form-actions">
+                <button type="button" class="btn btn-outline" id="btn-cancel-rule-page">Cancelar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Regra de Canal</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: REGRAS DE DM & URA MULTI-NÍVEL -->
+      <section class="tab-content" id="welcome-tab">
+        <!-- 1. GATILHOS DE DM -->
+        <form id="form-dm-triggers" class="form-grid-page" style="margin-bottom: 32px;">
+          <div class="content-card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Gatilhos de Disparo de DM<span class="triangulo-ponto"></span></h3>
+                <p>Escolha quando o FlexBot deve iniciar uma conversa privada com o usuário.</p>
+              </div>
+            </div>
+            <div class="card-body form-grid">
+              <div class="form-group checkbox-group">
+                <label class="switch">
+                  <input type="checkbox" id="trigger-server-join-enabled" checked>
+                  <span class="slider round"></span>
+                </label>
+                <span>Enviar DM ao Entrar no Servidor (GuildMemberAdd)</span>
+              </div>
+
+              <div class="form-group checkbox-group">
+                <label class="switch">
+                  <input type="checkbox" id="trigger-keyword-enabled" checked>
+                  <span class="slider round"></span>
+                </label>
+                <span>Responder Saudações por Palavras-Chave na DM ("oi", "olá", "menu", "ajuda")</span>
+              </div>
+
+              <div class="form-group">
+                <label for="trigger-keywords-list">Palavras-Chave de Ativação (Separadas por vírgula)</label>
+                <input type="text" id="trigger-keywords-list" placeholder="oi, olá, ola, ajuda, matricula, menu, iniciar, bom dia">
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <button type="submit" class="btn btn-outline"><i class="fa-solid fa-floppy-disk"></i> Salvar Gatilhos</button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- 2. URA MULTI-NÍVEL COM CONSEQUÊNCIAS COMBINÁVEIS -->
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Construtor de URA Multi-Nível & Consequências das Ações<span class="triangulo-ponto"></span></h3>
+              <p>Estruture as opções do menu e combine as consequências desejadas para cada ação (Mensagem, Cargo, Matrícula e/ou Submenu).</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <form id="form-ura-tree">
+              <div class="form-group" style="margin-bottom: 24px;">
+                <label for="ura-greeting-msg">Mensagem Principal de Boas-Vindas / Apresentação do Menu *</label>
+                <textarea id="ura-greeting-msg" rows="3" required placeholder="👋 **Olá {user}! Seja bem-vindo(a) ao atendimento da Prefeitura do Rio.**&#10;&#10;Por favor, selecione uma das opções abaixo:"></textarea>
+                <small>Dica: Use <code>{user}</code> para mencionar o usuário e <code>{server}</code> para o nome do servidor.</small>
+              </div>
+
+              <!-- ÁRVORE DE OPÇÕES ROOT DA URA -->
+              <div class="ivr-box">
+                <h4><i class="fa-solid fa-list-ol"></i> Estrutura do Menu de Atendimento (Nível Principal)</h4>
+                <p class="text-muted" style="margin-bottom: 16px;">Adicione as opções do menu. Marque as consequências que serão disparadas em resposta a cada opção (podem ser combinadas!).</p>
+
+                <div id="ura-root-options-container"></div>
+
+                <button type="button" class="btn btn-outline" id="btn-add-root-option" style="margin-top: 16px;">
+                  <i class="fa-solid fa-plus"></i> Adicionar Opção ao Menu Principal
+                </button>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+                <button type="submit" class="btn btn-primary" id="btn-save-ura-tree">
+                  <i class="fa-solid fa-floppy-disk"></i> Salvar URA Multi-Nível
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: DATABASE MANAGEMENT (COM BARRA DE PESQUISA) -->
+      <section class="tab-content" id="database-tab">
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-database"></i> Cadastrar Base de Matrículas (`data/matriculas.json`) <span class="triangulo-ponto"></span></h3>
+              <p>Cole ou digite as matrículas autorizadas na área de texto abaixo (separadas por vírgula ou linha).</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <form id="form-add-matricula-bulk" style="margin-bottom: 28px;">
+              <div class="form-group">
+                <label for="input-bulk-matriculas">Insira as Matrículas (Separadas por vírgula, espaço ou linha) *</label>
+                <textarea id="input-bulk-matriculas" rows="4" placeholder="Exemplo:
+12345678, 87654321, 11223344, 40123456, 55443322" required></textarea>
+                <small>Você pode colar vários números de uma vez. O sistema ignora duplicados automaticamente.</small>
+              </div>
+
+              <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary" id="btn-submit-bulk-text">
+                  <i class="fa-solid fa-plus-circle"></i> Cadastrar Matrículas na Base
+                </button>
+              </div>
+            </form>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px;">
+              <h4 style="color: var(--color-primary); font-family: var(--font-heading); font-size: 1.05rem;">
+                <i class="fa-solid fa-list-check"></i> Lista de Matrículas Autorizadas
+              </h4>
+
+              <!-- BARRA DE PESQUISA EM TEMPO REAL -->
+              <div style="position: relative; min-width: 320px;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gradient-blue-mid);"></i>
+                <input type="text" id="input-search-matricula" placeholder="Pesquisar matrícula..." style="padding-left: 40px; background: var(--color-white);">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Matrícula Autorizada</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="matriculas-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: DM SENDER -->
+      <section class="tab-content" id="dm-tab">
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-paper-plane"></i> Enviar Mensagem Direta (DM) <span class="triangulo-ponto"></span></h3>
+              <p>Envie mensagens personalizadas diretamente para a DM de um usuário do Discord.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <form id="form-send-dm" class="form-grid">
+              <div class="form-group">
+                <label for="dm-user-id">ID do Usuário Discord *</label>
+                <input type="text" id="dm-user-id" placeholder="Ex: 123456789012345678" required>
+                <small>Habilite o Modo Desenvolvedor no Discord para copiar o ID do usuário.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="dm-message">Conteúdo da Mensagem *</label>
+                <textarea id="dm-message" rows="4" placeholder="Olá! Por favor envie sua matrícula para liberar seu cargo..." required></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-submit-dm">
+                  <i class="fa-solid fa-paper-plane"></i> Disparar Mensagem Direta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast-notification" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

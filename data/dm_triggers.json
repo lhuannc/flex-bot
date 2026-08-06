@@ -1,0 +1,23 @@
+{
+  "serverJoin": {
+    "enabled": true,
+    "message": "👋 **Seja bem-vindo(a) ao servidor!**"
+  },
+  "keywordGreeting": {
+    "enabled": true,
+    "keywords": [
+      "oi",
+      "olá",
+      "ola",
+      "ajuda",
+      "matricula",
+      "matrícula",
+      "menu",
+      "iniciar",
+      "bom dia",
+      "boa tarde",
+      "boa noite"
+    ],
+    "message": ""
+  }
+}

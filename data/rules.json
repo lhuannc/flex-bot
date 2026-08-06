@@ -1,0 +1,39 @@
+[
+  {
+    "id": "rule-1",
+    "name": "Validação Principal de Matrícula",
+    "description": "Valida matrículas de 8 dígitos presentes na base oficial de dados (matriculas.json) e atribui o cargo configurado.",
+    "matchType": "DATABASE",
+    "triggerValue": "",
+    "guildId": "1532769863808843959",
+    "roleId": "1534602103706882139",
+    "allowedChannels": [],
+    "blacklistedChannels": [],
+    "allowedRoles": [],
+    "blacklistedRoles": [],
+    "enableDM": false,
+    "isIVR": false,
+    "ivrOptions": [
+      {
+        "label": "Validação de Matrícula",
+        "promptMessage": "Por favor, digite seu número de matrícula oficial:",
+        "roleId": "",
+        "matchType": "DATABASE",
+        "triggerValue": ""
+      },
+      {
+        "label": "Opção 2",
+        "promptMessage": "Link do CANAL - https://discord.com/channels/1532769863808843959/1532769864240988364",
+        "matchType": "DATABASE",
+        "triggerValue": "",
+        "roleId": ""
+      }
+    ],
+    "welcomeMessage": "👋 **Olá! Seja bem-vindo ao atendimento automatizado.**\n\nPor favor, envie sua matrícula oficial para validar seu acesso.",
+    "successMessage": "✅ **Acesso Liberado!** {user} Sua matrícula foi validada com sucesso.\nAcesse o LINK - https://discord.com/channels/1532769863808843959/1532769864240988364",
+    "errorMessage": "❌ {user} **Matrícula não encontrada.** Verifique se você digitou os 8 números corretamente ou procure a coordenação.",
+    "active": true,
+    "allowedChannelId": "1532769864240988363",
+    "deleteDelaySeconds": 30
+  }
+]
