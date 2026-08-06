@@ -7,12 +7,16 @@ const MATRICULAS_FILE = path.join(__dirname, '../data/matriculas.json');
  * Garantir que o diretório e arquivo de matrículas existam
  */
 function ensureFileExists() {
-  const dir = path.dirname(MATRICULAS_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(MATRICULAS_FILE)) {
-    fs.writeFileSync(MATRICULAS_FILE, JSON.stringify(["12345678", "87654321"], null, 2));
+  try {
+    const dir = path.dirname(MATRICULAS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(MATRICULAS_FILE)) {
+      fs.writeFileSync(MATRICULAS_FILE, JSON.stringify(["12345678", "87654321"], null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.error('[databaseService] Erro ao verificar/criar diretório data:', err);
   }
 }
 
@@ -65,7 +69,7 @@ function adicionarMatricula(matricula) {
 /**
  * Adiciona um lote de matrículas (Importação CSV / Texto em Massa)
  * @param {Array<string>|string} rawData - Array de strings ou texto CSV/separado por vírgula ou quebra de linha
- * @returns {{ addedCount: number, totalMatriculas: number }}
+ * @returns {{ addedCount: number, totalMatriculas: number, matriculas: Array<string> }}
  */
 function adicionarMatriculasEmMassa(rawData) {
   let items = [];
@@ -124,8 +128,12 @@ function removerMatricula(matricula) {
  * @param {Array<string>} lista 
  */
 function saveMatriculas(lista) {
-  ensureFileExists();
-  fs.writeFileSync(MATRICULAS_FILE, JSON.stringify(lista, null, 2), 'utf-8');
+  try {
+    ensureFileExists();
+    fs.writeFileSync(MATRICULAS_FILE, JSON.stringify(lista, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[databaseService] Erro ao salvar matrículas no disco:', err);
+  }
 }
 
 module.exports = {

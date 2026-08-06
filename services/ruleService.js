@@ -9,44 +9,40 @@ const WELCOME_FILE = path.join(__dirname, '../data/welcome.json');
  * Garante a existência dos arquivos de configuração
  */
 function ensureRulesFileExists() {
-  const dir = path.dirname(RULES_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(RULES_FILE)) {
-    const defaultRules = [
-      {
-        id: 'rule-' + Date.now(),
-        name: 'Validação Principal de Matrícula',
-        description: 'Valida matrículas de 8 dígitos presentes na base oficial.',
-        matchType: 'DATABASE',
-        triggerValue: '',
-        guildId: process.env.GUILD_ID || '',
-        roleId: process.env.ROLE_ID || '',
-        allowedChannelId: process.env.ALLOWED_CHANNEL_ID || '',
-        allowedChannels: process.env.ALLOWED_CHANNEL_ID ? [process.env.ALLOWED_CHANNEL_ID] : [],
-        blacklistedChannels: [],
-        allowedRoles: [],
-        blacklistedRoles: [],
-        enableDM: true,
-        isIVR: false,
-        deleteDelaySeconds: 10,
-        ivrOptions: [
-          {
-            label: 'Validação de Matrícula',
-            promptMessage: 'Por favor, digite seu número de matrícula oficial:',
-            roleId: process.env.ROLE_ID || '',
-            matchType: 'DATABASE',
-            triggerValue: ''
-          }
-        ],
-        welcomeMessage: '👋 **Olá! Seja bem-vindo ao servidor.**\n\nPor favor, envie sua matrícula oficial para validar seu acesso:',
-        successMessage: '✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído.',
-        errorMessage: '❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados.',
-        active: true
-      }
-    ];
-    fs.writeFileSync(RULES_FILE, JSON.stringify(defaultRules, null, 2));
+  try {
+    const dir = path.dirname(RULES_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(RULES_FILE)) {
+      const defaultRules = [
+        {
+          id: 'rule-' + Date.now(),
+          name: 'Validação Principal de Matrícula',
+          description: 'Valida matrículas de 8 dígitos presentes na base oficial.',
+          matchType: 'DATABASE',
+          triggerValue: '',
+          guildId: process.env.GUILD_ID || '',
+          roleId: process.env.ROLE_ID || '',
+          allowedChannelId: process.env.ALLOWED_CHANNEL_ID || '',
+          allowedChannels: process.env.ALLOWED_CHANNEL_ID ? [process.env.ALLOWED_CHANNEL_ID] : [],
+          blacklistedChannels: [],
+          allowedRoles: [],
+          blacklistedRoles: [],
+          enableDM: true,
+          isIVR: false,
+          deleteDelaySeconds: 10,
+          ivrOptions: [],
+          welcomeMessage: '👋 **Olá! Seja bem-vindo ao servidor.**\n\nPor favor, envie sua matrícula oficial para validar seu acesso:',
+          successMessage: '✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído.',
+          errorMessage: '❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados.',
+          active: true
+        }
+      ];
+      fs.writeFileSync(RULES_FILE, JSON.stringify(defaultRules, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.error('[ruleService] Erro ao verificar/criar rules.json:', err);
   }
 }
 
@@ -54,17 +50,21 @@ function ensureRulesFileExists() {
  * Garante a existência das configurações de boas-vindas
  */
 function ensureWelcomeFileExists() {
-  const dir = path.dirname(WELCOME_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(WELCOME_FILE)) {
-    const defaultWelcome = {
-      enabled: true,
-      sendDM: true,
-      message: '👋 **Seja bem-vindo(a) ao nosso servidor!**\n\nPara liberar o seu acesso aos canais exclusivos, por favor responda a esta mensagem enviando sua **matrícula de 8 dígitos**!'
-    };
-    fs.writeFileSync(WELCOME_FILE, JSON.stringify(defaultWelcome, null, 2));
+  try {
+    const dir = path.dirname(WELCOME_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(WELCOME_FILE)) {
+      const defaultWelcome = {
+        enabled: true,
+        sendDM: true,
+        message: '👋 **Seja bem-vindo(a) ao nosso servidor!**\n\nPara liberar o seu acesso aos canais exclusivos, por favor responda a esta mensagem enviando sua **matrícula de 8 dígitos**!'
+      };
+      fs.writeFileSync(WELCOME_FILE, JSON.stringify(defaultWelcome, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.error('[ruleService] Erro ao verificar/criar welcome.json:', err);
   }
 }
 
@@ -86,8 +86,12 @@ function getRules() {
  * Salva a lista de regras no JSON
  */
 function saveRules(rules) {
-  ensureRulesFileExists();
-  fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2), 'utf-8');
+  try {
+    ensureRulesFileExists();
+    fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[ruleService] Erro ao salvar regras no disco:', err);
+  }
 }
 
 /**
@@ -107,8 +111,12 @@ function getWelcomeSettings() {
  * Salva as configurações de Boas-Vindas
  */
 function saveWelcomeSettings(settings) {
-  ensureWelcomeFileExists();
-  fs.writeFileSync(WELCOME_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+  try {
+    ensureWelcomeFileExists();
+    fs.writeFileSync(WELCOME_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[ruleService] Erro ao salvar welcome.json no disco:', err);
+  }
 }
 
 /**
