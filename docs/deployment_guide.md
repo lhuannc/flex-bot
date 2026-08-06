@@ -1,20 +1,25 @@
 # Guia de Implantação e Hospedagem (Deployment Guide) — FlexBot
 
-Este documento explica por que o Netlify não é adequado para rodar Bots de Discord e apresenta o passo a passo para hospedar o **FlexBot** gratuitamente em plataformas próprias para servidores 24/7 como **Render.com** ou **Railway.app**.
+Este documento explica por que plataformas estáticas como **GitHub Pages** e **Netlify** não conseguem rodar Bots de Discord e apresenta as opções de hospedagem 24/7 gratuitas no **Render.com** ou **Railway.app**.
 
 ---
 
-## ⚠️ 1. Por que o Netlify NÃO roda o FlexBot?
+## ❌ 1. Posso usar GitHub Pages ou Netlify? (NÃO)
 
-- **Netlify é para Sites Estáticos / Serverless**: O Netlify foi projetado para páginas estáticas (HTML/React) e Serverless Functions (funções que duram apenas alguns segundos).
-- **O Bot do Discord exige Conexão 24/7**: Um bot de Discord precisa manter um processo **Node.js rodando continuamente** conectado ao servidor do Discord (WebSocket/Gateway). No Netlify, o bot ficaria offline em poucos segundos.
-- **Persistência de Dados**: O sistema de arquivos do Netlify é somente leitura, impedindo o salvamento das matrículas e regras no diretório `./data/`.
+### 🔴 GitHub Pages
+- **Servidor Estático**: O GitHub Pages apenas entrega arquivos estáticos (HTML/CSS/JS) para o navegador do cliente.
+- **Sem Node.js**: O GitHub Pages **não executa código Node.js** e não consegue manter o processo do FlexBot conectado ao Discord.
+- **Resultado**: O bot fica **totalmente offline** e a Dashboard Web não consegue salvar dados.
+
+### 🔴 Netlify / Vercel (Hospedagem Serverless)
+- **Funções de Curta Duração**: O Netlify e o Vercel encerram qualquer execução após 10 a 26 segundos.
+- **Resultado**: O bot desconecta do Discord em poucos segundos após ligar.
 
 ---
 
-## 🚀 2. Onde hospedar o FlexBot 24/7 Gratuitamente?
+## 🟢 2. Onde hospedar o FlexBot 24 horas por dia (Gratuitamente)?
 
-Recomendamos as plataformas **Render.com** ou **Railway.app**, que possuem suporte nativo a **Containers Docker e servidores Node.js 24/7**.
+Para que o bot do Discord fique **online 24/7** e a Dashboard Web funcione, você precisa de uma plataforma que suporte **servidores Node.js ou Containers Docker contínuos**.
 
 ---
 
@@ -33,7 +38,7 @@ Recomendamos as plataformas **Render.com** ou **Railway.app**, que possuem supor
    - `PORT`: `3000`
 6. Clique em **Create Web Service**.
 
-> ✨ O Render compilará a imagem Docker e manterá o bot do Discord e a Dashboard Web rodando 24 horas por dia!
+> ✨ O Render compilará a imagem Docker e manterá o bot do Discord e a Dashboard Web rodando 24 horas por dia gratuitamente!
 
 ---
 
