@@ -131,6 +131,20 @@ function createWebServer() {
     res.json({ success: true, triggers: dmTriggerService.getDMTriggers() });
   });
 
+  // Disparo de mensagem para membros que JÁ ESTÃO no servidor
+  app.post('/api/dm-triggers/broadcast-existing', async (req, res) => {
+    const { guildId, message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: 'Conteúdo da mensagem é obrigatório.' });
+    }
+
+    const result = await discordService.broadcastToExistingMembers(guildId, message);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  });
+
   // 6. Integração Dinâmica com o Discord (Servidores, Cargos e Canais)
   app.get('/api/discord/guilds', async (req, res) => {
     const guilds = await discordService.getGuilds();
@@ -149,7 +163,7 @@ function createWebServer() {
     res.json(channels);
   });
 
-  // 7. Enviar DM Direta
+  // 7. Enviar DM Direta Individual
   app.post('/api/send-dm', async (req, res) => {
     const { userId, message } = req.body;
     if (!userId || !message) {

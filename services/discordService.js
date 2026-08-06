@@ -168,6 +168,56 @@ async function sendDMToUser(userId, messageContent) {
   }
 }
 
+/**
+ * Dispara uma mensagem em massa para todos os membros que JÁ ESTÃO no servidor
+ * @param {string} [guildId] 
+ * @param {string} messageTemplate 
+ */
+async function broadcastToExistingMembers(guildId = null, messageTemplate) {
+  if (!discordClient) {
+    return { success: false, message: 'Cliente do Discord não inicializado.' };
+  }
+
+  const guild = await getGuild(guildId);
+  if (!guild) {
+    return { success: false, message: 'Servidor não encontrado.' };
+  }
+
+  try {
+    const members = await guild.members.fetch();
+    const humanMembers = members.filter(m => !m.user.bot);
+
+    let sentCount = 0;
+    let failedCount = 0;
+
+    for (const [id, member] of humanMembers) {
+      const msg = messageTemplate
+        .replace(/\{user\}/g, `<@${id}>`)
+        .replace(/\{server\}/g, guild.name);
+
+      try {
+        await member.send(msg);
+        sentCount++;
+      } catch (err) {
+        failedCount++;
+      }
+
+      // Delay de 1.2s entre envios para respeitar o Rate-limit do Discord
+      await new Promise(res => setTimeout(res, 1200));
+    }
+
+    return {
+      success: true,
+      message: `🎉 Disparo concluído! ${sentCount} DMs enviadas aos membros atuais (${failedCount} falhas devido a DMs fechadas).`,
+      sentCount,
+      failedCount
+    };
+  } catch (error) {
+    console.error('[discordService] Erro no broadcast para membros existentes:', error);
+    return { success: false, message: `Erro durante o disparo: ${error.message}` };
+  }
+}
+
 module.exports = {
   setClient,
   getClient,
@@ -176,5 +226,6 @@ module.exports = {
   getGuildRoles,
   getGuildChannels,
   assignRoleToUser,
-  sendDMToUser
+  sendDMToUser,
+  broadcastToExistingMembers
 };

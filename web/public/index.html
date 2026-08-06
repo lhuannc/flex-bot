@@ -239,39 +239,73 @@
 
       <!-- TAB 3: REGRAS DE DM & URA MULTI-NÍVEL -->
       <section class="tab-content" id="welcome-tab">
-        <!-- 1. GATILHOS DE DM -->
+        <!-- 1. GATILHOS DE DM (PRIMEIRO INGRESSO VS MEMBROS EXISTENTES) -->
         <form id="form-dm-triggers" class="form-grid-page" style="margin-bottom: 32px;">
           <div class="content-card">
             <div class="card-header">
               <div>
-                <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Gatilhos de Disparo de DM<span class="triangulo-ponto"></span></h3>
-                <p>Escolha quando o FlexBot deve iniciar uma conversa privada com o usuário.</p>
+                <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Gatilhos e Mensagens de Disparo em DM<span class="triangulo-ponto"></span></h3>
+                <p>Configure mensagens específicas para novos ingressantes (1º Acesso) e para membros já existentes no servidor.</p>
               </div>
             </div>
-            <div class="card-body form-grid">
-              <div class="form-group checkbox-group">
-                <label class="switch">
-                  <input type="checkbox" id="trigger-server-join-enabled" checked>
-                  <span class="slider round"></span>
-                </label>
-                <span>Enviar DM ao Entrar no Servidor (GuildMemberAdd)</span>
-              </div>
+            <div class="card-body">
+              <div class="form-grid" style="max-width: 100%;">
+                
+                <!-- GATILHO 1: PRIMEIRO INGRESSO (GuildMemberAdd) -->
+                <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
+                  <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                    <label class="switch">
+                      <input type="checkbox" id="trigger-server-join-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                    <span style="font-weight: 800; color: var(--color-primary);">🟢 Mensagem para PRIMEIRO INGRESSO (Novos Membros que entram no servidor)</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="trigger-server-join-msg">Mensagem Privada de Boas-Vindas (1º Acesso) *</label>
+                    <textarea id="trigger-server-join-msg" rows="3" placeholder="👋 **Olá {user}! Seja bem-vindo(a) pela primeira vez ao servidor {server}!**&#10;&#10;Por favor, envie sua matrícula aqui no privado para liberar seu cargo de acesso."></textarea>
+                    <small>Enviada automaticamente na DM no exato momento em que um novo usuário entra no servidor do Discord.</small>
+                  </div>
+                </div>
 
-              <div class="form-group checkbox-group">
-                <label class="switch">
-                  <input type="checkbox" id="trigger-keyword-enabled" checked>
-                  <span class="slider round"></span>
-                </label>
-                <span>Responder Saudações por Palavras-Chave na DM ("oi", "olá", "menu", "ajuda")</span>
-              </div>
+                <!-- GATILHO 2: MEMBROS JÁ EXISTENTES NO SERVIDOR -->
+                <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
+                  <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                    <label class="switch">
+                      <input type="checkbox" id="trigger-existing-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                    <span style="font-weight: 800; color: var(--color-primary);">📢 Mensagem para MEMBROS JÁ EXISTENTES no Servidor</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="trigger-existing-msg">Mensagem Privada para Membros Atuais *</label>
+                    <textarea id="trigger-existing-msg" rows="3" placeholder="📢 **Olá {user}! Comunicado Oficial da Prefeitura do Rio - Servidor {server}.**&#10;&#10;Para atualizar e validar seu acesso aos canais, responda a esta mensagem enviando sua matrícula."></textarea>
+                    <small>Mensagem direcionada aos membros que já pertencem ao servidor do Discord.</small>
+                  </div>
+                  <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                    <button type="button" class="btn btn-outline" id="btn-broadcast-existing" style="border-color: var(--color-gradient-blue-mid);">
+                      <i class="fa-solid fa-bullhorn"></i> Disparar Mensagem para Todos os Membros Atuais do Servidor
+                    </button>
+                  </div>
+                </div>
 
-              <div class="form-group">
-                <label for="trigger-keywords-list">Palavras-Chave de Ativação (Separadas por vírgula)</label>
-                <input type="text" id="trigger-keywords-list" placeholder="oi, olá, ola, ajuda, matricula, menu, iniciar, bom dia">
-              </div>
+                <!-- GATILHO 3: PALAVRAS-CHAVE -->
+                <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
+                  <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                    <label class="switch">
+                      <input type="checkbox" id="trigger-keyword-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                    <span style="font-weight: 800; color: var(--color-primary);">💬 Resposta a Saudações na DM (Palavras-Chave)</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="trigger-keywords-list">Palavras-Chave de Ativação (Separadas por vírgula)</label>
+                    <input type="text" id="trigger-keywords-list" placeholder="oi, olá, ola, ajuda, matricula, menu, iniciar, bom dia">
+                  </div>
+                </div>
 
-              <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                <button type="submit" class="btn btn-outline"><i class="fa-solid fa-floppy-disk"></i> Salvar Gatilhos</button>
+                <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+                  <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações de Gatilhos</button>
+                </div>
               </div>
             </div>
           </div>
@@ -315,7 +349,7 @@
         </div>
       </section>
 
-      <!-- TAB 4: DATABASE MANAGEMENT (COM BARRA DE PESQUISA) -->
+      <!-- TAB 4: DATABASE MANAGEMENT -->
       <section class="tab-content" id="database-tab">
         <div class="content-card">
           <div class="card-header">

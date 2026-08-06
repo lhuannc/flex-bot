@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const rolesRes = await fetch(`/api/discord/guilds/${guildId}/roles`);
       currentGuildRoles = await rolesRes.json();
-      renderURARootTree(); // Re-renderiza a URA para alimentar os selects de cargos
+      renderURARootTree();
     } catch (err) {
       console.error('Erro ao buscar cargos globais:', err);
     }
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 4. REGRAS DE DM & URA MULTI-NÍVEL (SELECT DINÂMICO DE CARGOS DO DISCORD) ---
+  // --- 4. REGRAS DE DM & URA MULTI-NÍVEL ---
   async function fetchDMRules() {
     try {
       const res = await fetch('/api/dm-rules');
@@ -690,13 +690,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // GATILHOS DE DM (DM TRIGGERS)
+  // --- GATILHOS DE MENSAGEM DIRETA (DM TRIGGERS) ---
   async function fetchDMTriggers() {
     try {
       const res = await fetch('/api/dm-triggers');
       const data = await res.json();
 
       document.getElementById('trigger-server-join-enabled').checked = data.serverJoin?.enabled !== false;
+      document.getElementById('trigger-server-join-msg').value = data.serverJoin?.message || '';
+
+      document.getElementById('trigger-existing-enabled').checked = data.existingMembersBroadcast?.enabled !== false;
+      document.getElementById('trigger-existing-msg').value = data.existingMembersBroadcast?.message || '';
+
       document.getElementById('trigger-keyword-enabled').checked = data.keywordGreeting?.enabled !== false;
 
       const kwList = Array.isArray(data.keywordGreeting?.keywords)
@@ -717,7 +722,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = {
       serverJoin: {
         enabled: document.getElementById('trigger-server-join-enabled').checked,
-        message: '👋 **Seja bem-vindo(a) ao servidor!**'
+        message: document.getElementById('trigger-server-join-msg').value
+      },
+      existingMembersBroadcast: {
+        enabled: document.getElementById('trigger-existing-enabled').checked,
+        message: document.getElementById('trigger-existing-msg').value
       },
       keywordGreeting: {
         enabled: document.getElementById('trigger-keyword-enabled').checked,
@@ -743,6 +752,45 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Erro de conexão.', 'error');
     }
   });
+
+  // DISPARAR MENSAGEM EM MASSA PARA MEMBROS JÁ EXISTENTES
+  const btnBroadcastExisting = document.getElementById('btn-broadcast-existing');
+  if (btnBroadcastExisting) {
+    btnBroadcastExisting.addEventListener('click', async () => {
+      const message = document.getElementById('trigger-existing-msg').value.trim();
+      if (!message) {
+        showToast('Por favor, informe a mensagem para os membros existentes.', 'error');
+        return;
+      }
+
+      if (!confirm('⚠️ Tem certeza que deseja disparar esta mensagem via DM para TODOS os membros atualmente no servidor?')) {
+        return;
+      }
+
+      btnBroadcastExisting.disabled = true;
+      btnBroadcastExisting.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Disparando DMs em Massa...';
+
+      try {
+        const res = await fetch('/api/dm-triggers/broadcast-existing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+        } else {
+          showToast(data.message || data.error || 'Erro ao realizar disparo.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro ao conectar com o servidor para o disparo.', 'error');
+      } finally {
+        btnBroadcastExisting.disabled = false;
+        btnBroadcastExisting.innerHTML = '<i class="fa-solid fa-bullhorn"></i> Disparar Mensagem para Todos os Membros Atuais do Servidor';
+      }
+    });
+  }
 
   // --- 5. BASE DE MATRÍCULAS COM CAMPO DE PESQUISA EM TEMPO REAL ---
   async function fetchMatriculas() {

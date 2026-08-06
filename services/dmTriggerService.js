@@ -16,12 +16,11 @@ function ensureFileExists() {
       const defaultTriggers = {
         serverJoin: {
           enabled: true,
-          message: '👋 **Olá {user}! Seja bem-vindo(a) ao servidor {server}!**\n\nPor favor, envie sua **matrícula de 8 dígitos** aqui no privado para liberar seu cargo de acesso.'
+          message: '👋 **Olá {user}! Seja bem-vindo(a) pela primeira vez ao servidor {server}!**\n\nPor favor, envie sua **matrícula de 8 dígitos** aqui nesta conversa privada para liberar seu cargo de acesso.'
         },
-        channelFirstPost: {
-          enabled: false,
-          channelId: '',
-          message: '👋 **Olá {user}!** Vimos que você enviou uma mensagem no canal de boas-vindas. Por favor, envie sua matrícula nesta conversa privada para liberar seu cargo.'
+        existingMembersBroadcast: {
+          enabled: true,
+          message: '📢 **Olá {user}! Comunicado Oficial da Prefeitura do Rio - Servidor {server}.**\n\nPara atualizar e validar seu acesso corporativo aos canais, por favor responda a esta mensagem enviando sua **matrícula de 8 dígitos**.'
         },
         keywordGreeting: {
           enabled: true,
