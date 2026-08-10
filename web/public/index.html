@@ -263,8 +263,8 @@
           <div class="wizard-step-item" data-step="2" id="dm-step-indicator-2">
             <div class="step-badge">2</div>
             <div class="step-info">
-              <span class="step-title">Menu da URA</span>
-              <span class="step-sub">Apresentação & Opções</span>
+              <span class="step-title">Menu & Consequências URA</span>
+              <span class="step-sub">Opções & Consequências</span>
             </div>
           </div>
           <div class="step-connector"></div>
@@ -272,8 +272,8 @@
           <div class="wizard-step-item" data-step="3" id="dm-step-indicator-3">
             <div class="step-badge">3</div>
             <div class="step-info">
-              <span class="step-title">Consequências</span>
-              <span class="step-sub">Ações Combináveis</span>
+              <span class="step-title">Revisão & Conclusão</span>
+              <span class="step-sub">Salvar Atendimento</span>
             </div>
           </div>
         </div>
@@ -351,19 +351,19 @@
           <div class="wizard-actions">
             <div></div>
             <button type="button" class="btn btn-primary btn-dm-next" data-next="2">
-              Próximo Passo: Menu da URA <i class="fa-solid fa-arrow-right"></i>
+              Próximo Passo: Menu & Consequências URA <i class="fa-solid fa-arrow-right"></i>
             </button>
           </div>
         </div>
 
-        <!-- PASSO 2 DE DM: MENU DA URA MULTI-NÍVEL -->
+        <!-- PASSO 2 DE DM: MENU DA URA MULTI-NÍVEL COM CONSEQUÊNCIAS INTEGRADAS -->
         <div class="wizard-panel" id="dm-wizard-step-2">
           <form id="form-ura-tree">
             <div class="content-card">
               <div class="card-header">
                 <div>
-                  <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Estrutura do Menu da URA Multi-Nível<span class="triangulo-ponto"></span></h3>
-                  <p>Escreva a mensagem de saudação principal e adicione as opções (`1`, `2`...) do menu.</p>
+                  <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Menu da URA Multi-Nível e Consequências das Opções<span class="triangulo-ponto"></span></h3>
+                  <p>Configure a mensagem de saudação principal, crie as opções do menu (`1`, `2`...) e defina as **consequências de cada opção** (Mensagem, Cargo, Matrícula ou Submenu).</p>
                 </div>
               </div>
               <div class="card-body">
@@ -373,7 +373,9 @@
                 </div>
 
                 <div class="ivr-box">
-                  <h4><i class="fa-solid fa-list-ol"></i> Opções do Menu Principal</h4>
+                  <h4><i class="fa-solid fa-list-ol"></i> Opções do Menu Principal e Consequências Integradas</h4>
+                  <p class="text-muted" style="margin-bottom: 16px;">Cada opção da URA abaixo possui o seu próprio bloco de consequências configuráveis (Mensagem, Cargo, Pedir Matrícula ou Submenu).</p>
+                  
                   <div id="ura-root-options-container"></div>
 
                   <button type="button" class="btn btn-outline" id="btn-add-root-option" style="margin-top: 16px;">
@@ -388,27 +390,36 @@
                 <i class="fa-solid fa-arrow-left"></i> Passo Anterior
               </button>
               <button type="button" class="btn btn-primary btn-dm-next" data-next="3">
-                Próximo Passo: Consequências <i class="fa-solid fa-arrow-right"></i>
+                Próximo Passo: Revisão & Conclusão <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </form>
         </div>
 
-        <!-- PASSO 3 DE DM: CONSEQUÊNCIAS COMBINÁVEIS DA AÇÃO -->
+        <!-- PASSO 3 DE DM: REVISÃO E SALVAMENTO -->
         <div class="wizard-panel" id="dm-wizard-step-3">
           <div class="content-card">
             <div class="card-header">
               <div>
-                <h3><i class="fa-solid fa-bolt" style="color: var(--color-gradient-blue-mid);"></i> Passo 3: Consequências Combináveis da Ação e Salvamento<span class="triangulo-ponto"></span></h3>
-                <p>Revise as consequências de cada opção (Enviar mensagem/link, Atribuir cargo, Pedir matrícula ou Abrir submenu) e salve a URA.</p>
+                <h3><i class="fa-solid fa-circle-check" style="color: var(--color-gradient-blue-mid);"></i> Passo 3: Revisão e Conclusão do Atendimento na DM<span class="triangulo-ponto"></span></h3>
+                <p>Confirme e ative todas as regras do menu URA e gatilhos de mensagem privada.</p>
               </div>
             </div>
             <div class="card-body">
-              <p class="text-muted" style="margin-bottom: 20px;">As consequências ativadas em cada opção no Passo 2 serão executadas automaticamente quando o usuário responder ao FlexBot na DM.</p>
+              <div style="background: #f8fafc; padding: 24px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 24px;">
+                <h4 style="color: var(--color-primary); font-family: var(--font-heading); margin-bottom: 12px;">
+                  <i class="fa-solid fa-list-check"></i> Resumo do Atendimento URA na DM
+                </h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-muted); line-height: 1.6;">
+                  - 🟢 <strong>Gatilho 1º Ingresso</strong>: Notificação automática ativada.<br>
+                  - 📢 <strong>Gatilho Membros Existentes</strong>: Mensagem de comunicado configurada.<br>
+                  - 🌳 <strong>Árvore de URA</strong>: Opções do menu com consequências combináveis.<br>
+                </p>
+              </div>
 
               <div style="display: flex; justify-content: flex-end;">
-                <button type="button" class="btn btn-primary" id="btn-save-ura-tree-step3">
-                  <i class="fa-solid fa-floppy-disk"></i> Salvar URA Multi-Nível & Consequências
+                <button type="button" class="btn btn-primary" id="btn-save-ura-tree-step3" style="padding: 14px 28px; font-size: 0.95rem;">
+                  <i class="fa-solid fa-floppy-disk"></i> Salvar e Ativar URA na DM
                 </button>
               </div>
             </div>
