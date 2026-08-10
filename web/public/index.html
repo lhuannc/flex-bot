@@ -27,9 +27,12 @@
       </div>
 
       <nav class="nav-menu">
-        <div class="nav-section-label">CONFIGURAÇÕES DO BOT</div>
-        <button class="nav-btn active" data-tab="wizard-tab" id="btn-tab-wizard">
-          <i class="fa-solid fa-sliders"></i> Assistente Guiado
+        <div class="nav-section-label">FLUXOS DE ATENDIMENTO</div>
+        <button class="nav-btn active" data-tab="channel-flow-tab" id="btn-tab-channel-flow">
+          <i class="fa-solid fa-hashtag"></i> Fluxo no Canal
+        </button>
+        <button class="nav-btn" data-tab="dm-flow-tab" id="btn-tab-dm-flow">
+          <i class="fa-solid fa-paper-plane"></i> Fluxo na DM & URA
         </button>
 
         <div class="nav-section-label" style="margin-top: 16px;">GESTÃO DE DADOS</div>
@@ -37,7 +40,7 @@
           <i class="fa-solid fa-database"></i> Base de Matrículas
         </button>
         <button class="nav-btn" data-tab="dm-tab" id="btn-tab-dm">
-          <i class="fa-solid fa-paper-plane"></i> DM Avulsa
+          <i class="fa-solid fa-envelope-open-text"></i> DM Avulsa
         </button>
       </nav>
 
@@ -55,154 +58,238 @@
       <!-- Header Bar -->
       <header class="top-header">
         <div class="header-title">
-          <h1 id="page-title">Assistente de Configurações<span class="triangulo-ponto"></span></h1>
-          <p id="page-subtitle">Configure o FlexBot em 3 passos simples e intuitivos.</p>
+          <h1 id="page-title">Fluxo de Validação no Canal<span class="triangulo-ponto"></span></h1>
+          <p id="page-subtitle">Configure as regras de validação em canais de texto através do assistente passo a passo.</p>
         </div>
         <div class="header-actions">
           <button class="btn btn-outline" id="btn-refresh"><i class="fa-solid fa-arrows-rotate"></i> Atualizar Dados</button>
         </div>
       </header>
 
-      <!-- TAB 1: STEP-BY-STEP CONFIGURATION WIZARD -->
-      <section class="tab-content active" id="wizard-tab">
-        <!-- BARRA DE PROGRESSO VISUAL DO WIZARD (3 PASSOS) -->
+      <!-- ===================================================================
+           TELA 1: FLUXO NO CANAL (WIZARD DEDICADO DE 3 PASSOS)
+           =================================================================== -->
+      <section class="tab-content active" id="channel-flow-tab">
+        <!-- STEPPER BAR DO WIZARD DE CANAL -->
         <div class="wizard-stepper">
-          <div class="wizard-step-item active" data-step="1" id="step-indicator-1">
+          <div class="wizard-step-item active" data-step="1" id="channel-step-indicator-1">
             <div class="step-badge">1</div>
             <div class="step-info">
-              <span class="step-title">Conexão Discord</span>
-              <span class="step-sub">Servidor & Cargo</span>
+              <span class="step-title">Servidor & Canal</span>
+              <span class="step-sub">Identificação & Local</span>
             </div>
           </div>
           <div class="step-connector"></div>
 
-          <div class="wizard-step-item" data-step="2" id="step-indicator-2">
+          <div class="wizard-step-item" data-step="2" id="channel-step-indicator-2">
             <div class="step-badge">2</div>
             <div class="step-info">
-              <span class="step-title">Regras de Canais</span>
-              <span class="step-sub">Canais Autorizados</span>
+              <span class="step-title">Cargo & Atribuição</span>
+              <span class="step-sub">Permissões no Discord</span>
             </div>
           </div>
           <div class="step-connector"></div>
 
-          <div class="wizard-step-item" data-step="3" id="step-indicator-3">
+          <div class="wizard-step-item" data-step="3" id="channel-step-indicator-3">
             <div class="step-badge">3</div>
             <div class="step-info">
-              <span class="step-title">Atendimento DM & URA</span>
-              <span class="step-sub">1º Ingresso, Disparos & URA</span>
+              <span class="step-title">Deleção & Respostas</span>
+              <span class="step-sub">Tempo & Mensagens</span>
             </div>
           </div>
         </div>
 
-        <!-- PASSO 1: CONEXÃO E SERVIDOR DISCORD -->
-        <div class="wizard-panel active" id="wizard-step-1">
-          <div class="stats-grid" style="margin-bottom: 24px;">
-            <div class="stat-card">
-              <div class="stat-icon green">
-                <i class="fa-solid fa-robot"></i>
-              </div>
-              <div class="stat-data">
-                <span class="stat-value" id="stat-bot-online">Online</span>
-                <span class="stat-label">Status do Bot</span>
-              </div>
-            </div>
+        <form id="form-channel-rule-wizard">
+          <input type="hidden" id="channel-rule-id">
 
-            <div class="stat-card">
-              <div class="stat-icon purple">
-                <i class="fa-solid fa-server"></i>
-              </div>
-              <div class="stat-data">
-                <span class="stat-value" id="stat-guild-name">Conectando...</span>
-                <span class="stat-label">Servidor Conectado</span>
-              </div>
-            </div>
-
-            <div class="stat-card">
-              <div class="stat-icon cyan">
-                <i class="fa-solid fa-id-card"></i>
-              </div>
-              <div class="stat-data">
-                <span class="stat-value" id="stat-matriculas">0</span>
-                <span class="stat-label">Matrículas na Base</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="content-card">
-            <div class="card-header">
-              <div>
-                <h3><i class="fa-solid fa-server" style="color: var(--color-gradient-blue-mid);"></i> Passo 1: Seleção do Servidor e Cargo Padrão<span class="triangulo-ponto"></span></h3>
-                <p>Verifique o status do bot e selecione o servidor do Discord e cargo principal de acesso.</p>
-              </div>
-            </div>
-            <div class="card-body">
-              <form id="form-step-1" class="form-grid">
-                <div class="form-group">
-                  <label for="step1-guild-id">Servidor do Discord (Guild) *</label>
-                  <select id="step1-guild-id" required>
-                    <option value="">Carregando servidores do Discord...</option>
-                  </select>
-                  <small>Selecione o servidor onde o FlexBot está instalado.</small>
-                </div>
-
-                <div class="form-group">
-                  <label for="step1-role-id">Cargo Padrão a Atribuir (Role) *</label>
-                  <select id="step1-role-id" required>
-                    <option value="">Selecione um servidor primeiro...</option>
-                  </select>
-                  <small>Cargo concedido aos membros após a validação da matrícula.</small>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <div class="wizard-actions">
-            <div></div> <!-- Espaçador à esquerda -->
-            <button class="btn btn-primary btn-next-step" data-next="2">
-              Próximo Passo: Regras de Canais <i class="fa-solid fa-arrow-right"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- PASSO 2: REGRAS DE CANAIS DE TEXTO -->
-        <div class="wizard-panel" id="wizard-step-2">
-          <div class="content-card">
-            <div class="card-header">
-              <div>
-                <h3><i class="fa-solid fa-hashtag" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Regras de Automação em Canais de Texto<span class="triangulo-ponto"></span></h3>
-                <p>Configure quais canais do servidor aceitarão a validação e defina o tempo de auto-deleção da mensagem de resposta.</p>
-              </div>
-              <button class="btn btn-primary" id="btn-add-rule"><i class="fa-solid fa-plus"></i> Nova Regra de Canal</button>
-            </div>
-            <div class="card-body">
-              <div id="rules-container" class="rules-list"></div>
-            </div>
-          </div>
-
-          <div class="wizard-actions">
-            <button class="btn btn-outline btn-prev-step" data-prev="1">
-              <i class="fa-solid fa-arrow-left"></i> Passo Anterior
-            </button>
-            <button class="btn btn-primary btn-next-step" data-next="3">
-              Próximo Passo: Atendimento DM & URA <i class="fa-solid fa-arrow-right"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- PASSO 3: ATENDIMENTO PRIVADO (DM, URA MULTI-NÍVEL & DISPAROS) -->
-        <div class="wizard-panel" id="wizard-step-3">
-          <!-- 1. GATILHOS DE MENSAGEM DIRETA -->
-          <form id="form-dm-triggers" class="form-grid-page" style="margin-bottom: 24px;">
+          <!-- PASSO 1: SERVIDOR E CANAL AUTORIZADO -->
+          <div class="wizard-panel active" id="channel-wizard-step-1">
             <div class="content-card">
               <div class="card-header">
                 <div>
-                  <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Passo 3.1: Gatilhos de Mensagem Privada (DM)<span class="triangulo-ponto"></span></h3>
-                  <p>Mensagens de boas-vindas para novos membros (1º Ingresso) e comunicado para membros atuais (Broadcast).</p>
+                  <h3><i class="fa-solid fa-building" style="color: var(--color-gradient-blue-mid);"></i> Passo 1: Servidor e Canal Específico Autorizado<span class="triangulo-ponto"></span></h3>
+                  <p>Defina o nome da regra, selecione o servidor do Discord e escolha o canal exclusivo onde os usuários digitarão a matrícula.</p>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="form-grid-page">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="channel-rule-name">Nome da Regra do Canal *</label>
+                      <input type="text" id="channel-rule-name" required placeholder="Ex: Validação Canal Oficial #validação">
+                    </div>
+                    <div class="form-group">
+                      <label for="channel-rule-description">Descrição</label>
+                      <input type="text" id="channel-rule-description" placeholder="Ex: Regra para o canal oficial de acesso dos servidores">
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="channel-rule-guild-id">Servidor do Discord (Guild) *</label>
+                      <select id="channel-rule-guild-id" required>
+                        <option value="">Carregando servidores...</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="channel-rule-channel-id">Canal Específico Autorizado *</label>
+                      <select id="channel-rule-channel-id" required>
+                        <option value="">Selecione o servidor primeiro...</option>
+                      </select>
+                      <small>O FlexBot escutará a digitação de matrículas exclusivamente neste canal.</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <div></div>
+              <button type="button" class="btn btn-primary btn-channel-next" data-next="2">
+                Próximo Passo: Cargo & Atribuição <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- PASSO 2: CARGO A ATRIBUIR -->
+          <div class="wizard-panel" id="channel-wizard-step-2">
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3><i class="fa-solid fa-user-shield" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Cargo a Atribuir no Discord<span class="triangulo-ponto"></span></h3>
+                  <p>Selecione a Role (Cargo) que o FlexBot atribuirá ao usuário quando a matrícula for validada com sucesso.</p>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="form-grid-page">
+                  <div class="form-group">
+                    <label for="channel-rule-role-id">Cargo a Atribuir (Role) *</label>
+                    <select id="channel-rule-role-id" required>
+                      <option value="">Selecione o servidor no Passo 1 primeiro...</option>
+                    </select>
+                    <small>Este cargo concede o acesso do servidor do Discord.</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <button type="button" class="btn btn-outline btn-channel-prev" data-prev="1">
+                <i class="fa-solid fa-arrow-left"></i> Passo Anterior
+              </button>
+              <button type="button" class="btn btn-primary btn-channel-next" data-next="3">
+                Próximo Passo: Deleção & Respostas <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- PASSO 3: MENSAGENS E TEMPO DE DELEÇÃO -->
+          <div class="wizard-panel" id="channel-wizard-step-3">
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3><i class="fa-solid fa-clock-rotate-left" style="color: var(--color-gradient-blue-mid);"></i> Passo 3: Tempo de Deleção e Mensagens de Resposta<span class="triangulo-ponto"></span></h3>
+                  <p>Configure o tempo para apagar a mensagem no canal e personalize os textos de sucesso e erro.</p>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="form-grid-page">
+                  <div class="form-group">
+                    <label for="channel-rule-delete-delay">Tempo para Auto-Deletar a Resposta no Canal (em segundos) *</label>
+                    <input type="number" id="channel-rule-delete-delay" min="0" max="3600" value="10" required placeholder="Ex: 10 (ou 0 para permanente)">
+                    <small>Digite <strong>0</strong> se desejar que as mensagens de confirmação permaneçam no canal.</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="channel-rule-success-msg">Mensagem de Sucesso no Canal *</label>
+                    <textarea id="channel-rule-success-msg" rows="2" required placeholder="✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído."></textarea>
+                    <small>Variáveis disponíveis: <code>{user}</code> menciona o usuário, <code>{role}</code> exibe o cargo e <code>{server}</code> o nome do servidor.</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="channel-rule-error-msg">Mensagem de Erro no Canal *</label>
+                    <textarea id="channel-rule-error-msg" rows="2" required placeholder="❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados."></textarea>
+                  </div>
+
+                  <div class="form-group checkbox-group">
+                    <label class="switch">
+                      <input type="checkbox" id="channel-rule-active" checked>
+                      <span class="slider round"></span>
+                    </label>
+                    <span>Regra de Canal Ativa</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <button type="button" class="btn btn-outline btn-channel-prev" data-prev="2">
+                <i class="fa-solid fa-arrow-left"></i> Passo Anterior
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Salvar Regra de Canal
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- LISTA DE REGRAS DE CANAIS EXISTENTES -->
+        <div class="content-card" style="margin-top: 32px;">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-list-check"></i> Regras de Canais Cadastradas<span class="triangulo-ponto"></span></h3>
+          </div>
+          <div class="card-body">
+            <div id="rules-container" class="rules-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TELA 2: FLUXO NA DM & URA (WIZARD DEDICADO DE 3 PASSOS)
+           =================================================================== -->
+      <section class="tab-content" id="dm-flow-tab">
+        <!-- STEPPER BAR DO WIZARD DE DM -->
+        <div class="wizard-stepper">
+          <div class="wizard-step-item active" data-step="1" id="dm-step-indicator-1">
+            <div class="step-badge">1</div>
+            <div class="step-info">
+              <span class="step-title">Boas-Vindas & DMs</span>
+              <span class="step-sub">1º Ingresso & Broadcast</span>
+            </div>
+          </div>
+          <div class="step-connector"></div>
+
+          <div class="wizard-step-item" data-step="2" id="dm-step-indicator-2">
+            <div class="step-badge">2</div>
+            <div class="step-info">
+              <span class="step-title">Menu da URA</span>
+              <span class="step-sub">Apresentação & Opções</span>
+            </div>
+          </div>
+          <div class="step-connector"></div>
+
+          <div class="wizard-step-item" data-step="3" id="dm-step-indicator-3">
+            <div class="step-badge">3</div>
+            <div class="step-info">
+              <span class="step-title">Consequências</span>
+              <span class="step-sub">Ações Combináveis</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASSO 1 DE DM: GATILHOS E COMUNICADOS DE MENSAGEM PRIVADA -->
+        <div class="wizard-panel active" id="dm-wizard-step-1">
+          <form id="form-dm-triggers" class="form-grid-page">
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Passo 1: Boas-Vindas e Disparos de Mensagem Privada (DM)<span class="triangulo-ponto"></span></h3>
+                  <p>Configure a mensagem de 1º ingresso para novos membros e o disparo em massa para os membros atuais.</p>
                 </div>
               </div>
               <div class="card-body">
                 <div class="form-grid" style="max-width: 100%;">
-                  
                   <!-- GATILHO 1: PRIMEIRO INGRESSO -->
                   <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
                     <div class="form-group checkbox-group" style="margin-bottom: 12px;">
@@ -261,133 +348,86 @@
             </div>
           </form>
 
-          <!-- 2. URA MULTI-NÍVEL -->
-          <div class="content-card">
-            <div class="card-header">
-              <div>
-                <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Passo 3.2: Árvore de Atendimento URA Multi-Nível<span class="triangulo-ponto"></span></h3>
-                <p>Estruture as opções de atendimento automático e as consequências combináveis da ação (Mensagem, Cargo, Matrícula e/ou Submenu).</p>
+          <div class="wizard-actions">
+            <div></div>
+            <button type="button" class="btn btn-primary btn-dm-next" data-next="2">
+              Próximo Passo: Menu da URA <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- PASSO 2 DE DM: MENU DA URA MULTI-NÍVEL -->
+        <div class="wizard-panel" id="dm-wizard-step-2">
+          <form id="form-ura-tree">
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Estrutura do Menu da URA Multi-Nível<span class="triangulo-ponto"></span></h3>
+                  <p>Escreva a mensagem de saudação principal e adicione as opções (`1`, `2`...) do menu.</p>
+                </div>
               </div>
-            </div>
-            <div class="card-body">
-              <form id="form-ura-tree">
+              <div class="card-body">
                 <div class="form-group" style="margin-bottom: 24px;">
                   <label for="ura-greeting-msg">Mensagem Principal de Apresentação do Menu URA *</label>
                   <textarea id="ura-greeting-msg" rows="3" required placeholder="👋 **Olá {user}! Seja bem-vindo(a) ao atendimento da Prefeitura do Rio.**&#10;&#10;Por favor, selecione uma das opções abaixo:"></textarea>
                 </div>
 
                 <div class="ivr-box">
-                  <h4><i class="fa-solid fa-list-ol"></i> Estrutura do Menu de Atendimento (Nível Principal)</h4>
+                  <h4><i class="fa-solid fa-list-ol"></i> Opções do Menu Principal</h4>
                   <div id="ura-root-options-container"></div>
 
                   <button type="button" class="btn btn-outline" id="btn-add-root-option" style="margin-top: 16px;">
                     <i class="fa-solid fa-plus"></i> Adicionar Opção ao Menu Principal
                   </button>
                 </div>
+              </div>
+            </div>
 
-                <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
-                  <button type="submit" class="btn btn-primary" id="btn-save-ura-tree">
-                    <i class="fa-solid fa-floppy-disk"></i> Salvar URA Multi-Nível
-                  </button>
-                </div>
-              </form>
+            <div class="wizard-actions">
+              <button type="button" class="btn btn-outline btn-dm-prev" data-prev="1">
+                <i class="fa-solid fa-arrow-left"></i> Passo Anterior
+              </button>
+              <button type="button" class="btn btn-primary btn-dm-next" data-next="3">
+                Próximo Passo: Consequências <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- PASSO 3 DE DM: CONSEQUÊNCIAS COMBINÁVEIS DA AÇÃO -->
+        <div class="wizard-panel" id="dm-wizard-step-3">
+          <div class="content-card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-bolt" style="color: var(--color-gradient-blue-mid);"></i> Passo 3: Consequências Combináveis da Ação e Salvamento<span class="triangulo-ponto"></span></h3>
+                <p>Revise as consequências de cada opção (Enviar mensagem/link, Atribuir cargo, Pedir matrícula ou Abrir submenu) e salve a URA.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <p class="text-muted" style="margin-bottom: 20px;">As consequências ativadas em cada opção no Passo 2 serão executadas automaticamente quando o usuário responder ao FlexBot na DM.</p>
+
+              <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="btn btn-primary" id="btn-save-ura-tree-step3">
+                  <i class="fa-solid fa-floppy-disk"></i> Salvar URA Multi-Nível & Consequências
+                </button>
+              </div>
             </div>
           </div>
 
           <div class="wizard-actions">
-            <button class="btn btn-outline btn-prev-step" data-prev="2">
+            <button type="button" class="btn btn-outline btn-dm-prev" data-prev="2">
               <i class="fa-solid fa-arrow-left"></i> Passo Anterior
             </button>
-            <button class="btn btn-primary" id="btn-finish-wizard">
-              <i class="fa-solid fa-circle-check"></i> Concluir Configuração
+            <button type="button" class="btn btn-primary" id="btn-finish-dm-wizard">
+              <i class="fa-solid fa-circle-check"></i> Concluir Configuração de DM
             </button>
           </div>
         </div>
       </section>
 
-      <!-- TAB 1.5: EDITOR DE REGRA DE CANAL (SUBTELA) -->
-      <section class="tab-content" id="rule-editor-tab">
-        <div class="content-card">
-          <div class="card-header">
-            <div>
-              <h3 id="rule-editor-title"><i class="fa-solid fa-pen-to-square"></i> Cadastrar Regra de Canal<span class="triangulo-ponto"></span></h3>
-              <p>Configure o servidor, cargo, canal exclusivo, tempo de auto-deleção e mensagens de resposta.</p>
-            </div>
-            <button class="btn btn-outline" id="btn-back-to-rules"><i class="fa-solid fa-arrow-left"></i> Voltar para o Passo 2</button>
-          </div>
-          <div class="card-body">
-            <form id="form-rule" class="form-grid-page">
-              <input type="hidden" id="rule-id">
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="rule-name">Nome da Regra *</label>
-                  <input type="text" id="rule-name" required placeholder="Ex: Validação Canal Oficial #validação">
-                </div>
-
-                <div class="form-group">
-                  <label for="rule-description">Descrição</label>
-                  <input type="text" id="rule-description" placeholder="Ex: Regra exclusiva para o canal oficial de matrículas">
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="rule-guild-id">Servidor do Discord (Guild) *</label>
-                  <select id="rule-guild-id">
-                    <option value="">Carregando servidores do Discord...</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="rule-role-id">Cargo a Atribuir (Role) *</label>
-                  <select id="rule-role-id">
-                    <option value="">Selecione um servidor primeiro...</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="rule-channel-id">Canal Específico Autorizado *</label>
-                  <select id="rule-channel-id" required>
-                    <option value="">Selecione um servidor primeiro...</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="rule-delete-delay">Tempo para Auto-Deletar a Mensagem de Resposta (em segundos) *</label>
-                <input type="number" id="rule-delete-delay" min="0" max="3600" value="10" required placeholder="Ex: 10 (ou 0 para não deletar)">
-                <small>Digite <strong>0</strong> se quiser que a mensagem de resposta permaneça no canal sem ser apagada.</small>
-              </div>
-
-              <div class="form-group">
-                <label for="rule-success-msg">Mensagem de Resposta do Canal (Sucesso) *</label>
-                <textarea id="rule-success-msg" rows="2" required placeholder="✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído."></textarea>
-              </div>
-
-              <div class="form-group">
-                <label for="rule-error-msg">Mensagem de Resposta do Canal (Erro) *</label>
-                <textarea id="rule-error-msg" rows="2" required placeholder="❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados."></textarea>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label class="switch">
-                  <input type="checkbox" id="rule-active" checked>
-                  <span class="slider round"></span>
-                </label>
-                <span>Regra Ativa</span>
-              </div>
-
-              <div class="page-form-actions">
-                <button type="button" class="btn btn-outline" id="btn-cancel-rule-page">Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Regra de Canal</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB INDEPENDENTE 2: BASE OFICIAL DE MATRÍCULAS -->
+      <!-- ===================================================================
+           TELA 3: BASE OFICIAL DE MATRÍCULAS (ABA INDEPENDENTE NO MENU LATERAL)
+           =================================================================== -->
       <section class="tab-content" id="database-tab">
         <div class="content-card">
           <div class="card-header">
@@ -441,7 +481,9 @@
         </div>
       </section>
 
-      <!-- TAB INDEPENDENTE 3: DM AVULSA -->
+      <!-- ===================================================================
+           TELA 4: DM AVULSA (ABA INDEPENDENTE NO MENU LATERAL)
+           =================================================================== -->
       <section class="tab-content" id="dm-tab">
         <div class="content-card">
           <div class="card-header">

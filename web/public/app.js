@@ -6,14 +6,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const pageSubtitle = document.getElementById('page-subtitle');
 
   const tabTitles = {
-    'wizard-tab': { title: 'Assistente de Configurações', sub: 'Configure o FlexBot em 3 passos simples e intuitivos.' },
-    'rule-editor-tab': { title: 'Cadastro de Regra de Canal', sub: 'Configure o servidor, cargo, canal exclusivo, tempo de auto-deleção e mensagens de resposta.' },
-    'database-tab': { title: 'Base Oficial de Matrículas (matriculas.json)', sub: 'Gerencie as matrículas numéricas autorizadas no sistema.' },
-    'dm-tab': { title: 'Envio de Mensagem Direta Avulsa (DM)', sub: 'Dispare mensagens diretas no privado de usuários do Discord.' }
+    'channel-flow-tab': { title: 'Fluxo de Validação no Canal', sub: 'Configure as regras de validação em canais de texto através do assistente passo a passo.' },
+    'dm-flow-tab': { title: 'Fluxo de Atendimento na DM & URA', sub: 'Configure o atendimento automático privado, comunicados e menus URA com wizard dedicado.' },
+    'database-tab': { title: 'Base Oficial de Matrículas (matriculas.json)', sub: 'Gerencie as matrículas numéricas autorizadas no sistema corporativo.' },
+    'dm-tab': { title: 'Envio de Mensagem Direta Avulsa (DM)', sub: 'Dispare mensagens diretas no privado de usuários específicos do Discord.' }
   };
 
   // State Management
-  let currentWizardStep = 1;
+  let currentChannelStep = 1;
+  let currentDMStep = 1;
+
   let guildsList = [];
   let currentGuildRoles = [];
   let currentGuildChannels = [];
@@ -44,73 +46,128 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- WIZARD STEPPER NAVIGATION ---
-  function goToWizardStep(stepNum) {
+  // --- WIZARD 1: FLUXO NO CANAL (3 PASSOS) ---
+  function goToChannelStep(stepNum) {
     stepNum = parseInt(stepNum, 10);
     if (stepNum < 1 || stepNum > 3) return;
 
-    currentWizardStep = stepNum;
+    currentChannelStep = stepNum;
 
-    // Atualiza Painéis Visíveis
-    document.querySelectorAll('.wizard-panel').forEach(panel => panel.classList.remove('active'));
-    const targetPanel = document.getElementById(`wizard-step-${stepNum}`);
-    if (targetPanel) targetPanel.classList.active = true;
+    const channelTab = document.getElementById('channel-flow-tab');
+    if (!channelTab) return;
+
+    // Atualiza Painéis do Wizard do Canal
+    channelTab.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
+    const targetPanel = document.getElementById(`channel-wizard-step-${stepNum}`);
     if (targetPanel) targetPanel.classList.add('active');
 
     // Atualiza Indicadores Superiores
     for (let i = 1; i <= 3; i++) {
-      const indicator = document.getElementById(`step-indicator-${i}`);
+      const indicator = document.getElementById(`channel-step-indicator-${i}`);
       if (indicator) {
         indicator.classList.remove('active', 'completed');
-        if (i === currentWizardStep) {
+        if (i === currentChannelStep) {
           indicator.classList.add('active');
-        } else if (i < currentWizardStep) {
+        } else if (i < currentChannelStep) {
           indicator.classList.add('completed');
         }
       }
     }
 
-    // Atualiza Linhas Conectoras
-    const connectors = document.querySelectorAll('.step-connector');
+    // Linhas Conectoras
+    const connectors = channelTab.querySelectorAll('.step-connector');
     connectors.forEach((conn, idx) => {
-      if (idx + 1 < currentWizardStep) {
+      if (idx + 1 < currentChannelStep) {
         conn.classList.add('active');
       } else {
         conn.classList.remove('active');
       }
     });
 
-    // Garante que a tab ativa é a do wizard
-    switchTab('wizard-tab');
+    switchTab('channel-flow-tab');
   }
 
-  // Clique Direto nos Indicadores de Passo
-  document.querySelectorAll('.wizard-step-item').forEach(item => {
+  document.querySelectorAll('#channel-flow-tab .wizard-step-item').forEach(item => {
     item.addEventListener('click', () => {
-      const step = item.getAttribute('data-step');
-      goToWizardStep(step);
+      goToChannelStep(item.getAttribute('data-step'));
     });
   });
 
-  // Botões de Avançar e Voltar
-  document.querySelectorAll('.btn-next-step').forEach(btn => {
+  document.querySelectorAll('.btn-channel-next').forEach(btn => {
     btn.addEventListener('click', () => {
-      const nextStep = btn.getAttribute('data-next');
-      goToWizardStep(nextStep);
+      goToChannelStep(btn.getAttribute('data-next'));
     });
   });
 
-  document.querySelectorAll('.btn-prev-step').forEach(btn => {
+  document.querySelectorAll('.btn-channel-prev').forEach(btn => {
     btn.addEventListener('click', () => {
-      const prevStep = btn.getAttribute('data-prev');
-      goToWizardStep(prevStep);
+      goToChannelStep(btn.getAttribute('data-prev'));
     });
   });
 
-  const btnFinishWizard = document.getElementById('btn-finish-wizard');
-  if (btnFinishWizard) {
-    btnFinishWizard.addEventListener('click', () => {
-      showToast('🎉 Todas as configurações do FlexBot foram salvas e concluídas com sucesso!', 'success');
+  // --- WIZARD 2: FLUXO NA DM & URA (3 PASSOS) ---
+  function goToDMStep(stepNum) {
+    stepNum = parseInt(stepNum, 10);
+    if (stepNum < 1 || stepNum > 3) return;
+
+    currentDMStep = stepNum;
+
+    const dmTab = document.getElementById('dm-flow-tab');
+    if (!dmTab) return;
+
+    // Atualiza Painéis do Wizard de DM
+    dmTab.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
+    const targetPanel = document.getElementById(`dm-wizard-step-${stepNum}`);
+    if (targetPanel) targetPanel.classList.add('active');
+
+    // Atualiza Indicadores Superiores
+    for (let i = 1; i <= 3; i++) {
+      const indicator = document.getElementById(`dm-step-indicator-${i}`);
+      if (indicator) {
+        indicator.classList.remove('active', 'completed');
+        if (i === currentDMStep) {
+          indicator.classList.add('active');
+        } else if (i < currentDMStep) {
+          indicator.classList.add('completed');
+        }
+      }
+    }
+
+    // Linhas Conectoras
+    const connectors = dmTab.querySelectorAll('.step-connector');
+    connectors.forEach((conn, idx) => {
+      if (idx + 1 < currentDMStep) {
+        conn.classList.add('active');
+      } else {
+        conn.classList.remove('active');
+      }
+    });
+
+    switchTab('dm-flow-tab');
+  }
+
+  document.querySelectorAll('#dm-flow-tab .wizard-step-item').forEach(item => {
+    item.addEventListener('click', () => {
+      goToDMStep(item.getAttribute('data-step'));
+    });
+  });
+
+  document.querySelectorAll('.btn-dm-next').forEach(btn => {
+    btn.addEventListener('click', () => {
+      goToDMStep(btn.getAttribute('data-next'));
+    });
+  });
+
+  document.querySelectorAll('.btn-dm-prev').forEach(btn => {
+    btn.addEventListener('click', () => {
+      goToDMStep(btn.getAttribute('data-prev'));
+    });
+  });
+
+  const btnFinishDM = document.getElementById('btn-finish-dm-wizard');
+  if (btnFinishDM) {
+    btnFinishDM.addEventListener('click', () => {
+      showToast('🎉 Configurações do Fluxo na DM e URA salvas e concluídas com sucesso!', 'success');
     });
   }
 
@@ -137,10 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/status');
       const data = await res.json();
-
-      document.getElementById('stat-matriculas').textContent = data.totalMatriculas;
-      document.getElementById('stat-bot-online').textContent = data.online ? 'Online' : 'Desconectado';
-      document.getElementById('stat-guild-name').textContent = data.guildName;
 
       const badge = document.getElementById('bot-status-badge');
       const userTag = document.getElementById('bot-username');
@@ -180,16 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const rolesRes = await fetch(`/api/discord/guilds/${guildId}/roles`);
       currentGuildRoles = await rolesRes.json();
-
-      // Preenche Select de Cargo Padrão no Passo 1
-      const step1RoleSelect = document.getElementById('step1-role-id');
-      if (step1RoleSelect) {
-        step1RoleSelect.innerHTML = '<option value="">Selecione o Cargo Padrão...</option>';
-        currentGuildRoles.forEach(r => {
-          step1RoleSelect.innerHTML += `<option value="${r.id}">${escapeHtml(r.name)} (ID: ${r.id})</option>`;
-        });
-      }
-
       renderURARootTree();
     } catch (err) {
       console.error('Erro ao buscar cargos globais:', err);
@@ -197,9 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function populateGuildSelectOptions() {
-    const step1GuildSelect = document.getElementById('step1-guild-id');
-    const ruleGuildSelect = document.getElementById('rule-guild-id');
-
+    const channelGuildSelect = document.getElementById('channel-rule-guild-id');
     const options = ['<option value="">Selecione o servidor do Discord...</option>'];
 
     if (guildsList && guildsList.length > 0) {
@@ -208,30 +249,21 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    if (step1GuildSelect) step1GuildSelect.innerHTML = options.join('');
-    if (ruleGuildSelect) ruleGuildSelect.innerHTML = options.join('');
+    if (channelGuildSelect) channelGuildSelect.innerHTML = options.join('');
   }
 
-  const step1GuildSelectElem = document.getElementById('step1-guild-id');
-  if (step1GuildSelectElem) {
-    step1GuildSelectElem.addEventListener('change', async () => {
-      const selectedGuildId = step1GuildSelectElem.value;
-      await loadGlobalRoles(selectedGuildId);
-    });
-  }
-
-  const ruleGuildSelectElem = document.getElementById('rule-guild-id');
-  if (ruleGuildSelectElem) {
-    ruleGuildSelectElem.addEventListener('change', async () => {
-      const selectedGuildId = ruleGuildSelectElem.value;
+  const channelGuildSelectElem = document.getElementById('channel-rule-guild-id');
+  if (channelGuildSelectElem) {
+    channelGuildSelectElem.addEventListener('change', async () => {
+      const selectedGuildId = channelGuildSelectElem.value;
       await loadGuildRolesAndChannels(selectedGuildId);
       await loadGlobalRoles(selectedGuildId);
     });
   }
 
   async function loadGuildRolesAndChannels(guildId, targetRoleId = '', targetChannelId = '') {
-    const roleSelect = document.getElementById('rule-role-id');
-    const channelSelect = document.getElementById('rule-channel-id');
+    const roleSelect = document.getElementById('channel-rule-role-id');
+    const channelSelect = document.getElementById('channel-rule-channel-id');
 
     if (!guildId) {
       if (roleSelect) roleSelect.innerHTML = '<option value="">Selecione um servidor primeiro...</option>';
@@ -271,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 3. REGRAS DE CANAIS (PASSO 2 DO WIZARD) ---
+  // --- 3. REGRAS DE CANAIS (WIZARD 1) ---
   async function fetchRules() {
     try {
       const res = await fetch('/api/rules');
@@ -284,8 +316,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderRules(rules) {
     const container = document.getElementById('rules-container');
+    if (!container) return;
+
     if (!rules || rules.length === 0) {
-      container.innerHTML = '<p class="text-muted">Nenhuma regra de canal cadastrada. Clique em "Nova Regra de Canal" para criar.</p>';
+      container.innerHTML = '<p class="text-muted">Nenhuma regra de canal cadastrada. Preencha os 3 passos acima para criar.</p>';
       return;
     }
 
@@ -325,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
 
     document.querySelectorAll('.btn-edit-rule').forEach(btn => {
-      btn.addEventListener('click', () => openRuleEditorPage(btn.dataset.id));
+      btn.addEventListener('click', () => editChannelRule(btn.dataset.id));
     });
 
     document.querySelectorAll('.btn-delete-rule').forEach(btn => {
@@ -333,82 +367,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // FORMULÁRIO DE REGRA DE CANAL (SUBTELA EDITOR)
-  const formRule = document.getElementById('form-rule');
+  async function editChannelRule(id) {
+    const rule = rulesCache.find(r => r.id === id);
+    if (!rule) return;
 
-  document.getElementById('btn-add-rule').addEventListener('click', () => {
-    openRuleEditorPage(null);
-  });
+    document.getElementById('channel-rule-id').value = rule.id;
+    document.getElementById('channel-rule-name').value = rule.name;
+    document.getElementById('channel-rule-description').value = rule.description || '';
+    document.getElementById('channel-rule-guild-id').value = rule.guildId || '';
 
-  document.getElementById('btn-back-to-rules').addEventListener('click', () => {
-    goToWizardStep(2);
-  });
-
-  document.getElementById('btn-cancel-rule-page').addEventListener('click', () => {
-    goToWizardStep(2);
-  });
-
-  async function openRuleEditorPage(id) {
-    populateGuildSelectOptions();
-
-    if (id) {
-      const rule = rulesCache.find(r => r.id === id);
-      if (!rule) return;
-      document.getElementById('rule-editor-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar Regra de Canal';
-      document.getElementById('rule-id').value = rule.id;
-      document.getElementById('rule-name').value = rule.name;
-      document.getElementById('rule-description').value = rule.description || '';
-      document.getElementById('rule-guild-id').value = rule.guildId || '';
-
-      if (rule.guildId) {
-        await loadGuildRolesAndChannels(rule.guildId, rule.roleId, rule.allowedChannelId);
-      } else {
-        document.getElementById('rule-role-id').value = rule.roleId || '';
-        document.getElementById('rule-channel-id').value = rule.allowedChannelId || '';
-      }
-
-      document.getElementById('rule-delete-delay').value = typeof rule.deleteDelaySeconds === 'number' ? rule.deleteDelaySeconds : 10;
-      document.getElementById('rule-success-msg').value = rule.successMessage || '';
-      document.getElementById('rule-error-msg').value = rule.errorMessage || '';
-      document.getElementById('rule-active').checked = rule.active !== false;
-    } else {
-      document.getElementById('rule-editor-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> Cadastrar Nova Regra de Canal';
-      formRule.reset();
-      document.getElementById('rule-id').value = '';
-      document.getElementById('rule-delete-delay').value = 10;
-      document.getElementById('rule-success-msg').value = '✅ **Acesso Liberado!** {user}, sua matrícula foi validada com sucesso.';
-      document.getElementById('rule-error-msg').value = '❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados.';
-      document.getElementById('rule-active').checked = true;
-
-      if (guildsList && guildsList.length > 0) {
-        const defaultGuildId = guildsList[0].id;
-        document.getElementById('rule-guild-id').value = defaultGuildId;
-        await loadGuildRolesAndChannels(defaultGuildId);
-      }
+    if (rule.guildId) {
+      await loadGuildRolesAndChannels(rule.guildId, rule.roleId, rule.allowedChannelId);
     }
 
-    switchTab('rule-editor-tab');
+    document.getElementById('channel-rule-delete-delay').value = typeof rule.deleteDelaySeconds === 'number' ? rule.deleteDelaySeconds : 10;
+    document.getElementById('channel-rule-success-msg').value = rule.successMessage || '';
+    document.getElementById('channel-rule-error-msg').value = rule.errorMessage || '';
+    document.getElementById('channel-rule-active').checked = rule.active !== false;
+
+    goToChannelStep(1);
+    showToast(`Carregada regra "${rule.name}" para edição.`, 'success');
   }
 
-  if (formRule) {
-    formRule.addEventListener('submit', async (e) => {
+  const formChannelRule = document.getElementById('form-channel-rule-wizard');
+  if (formChannelRule) {
+    formChannelRule.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const id = document.getElementById('rule-id').value;
+      const id = document.getElementById('channel-rule-id').value;
 
       const payload = {
-        name: document.getElementById('rule-name').value,
-        description: document.getElementById('rule-description').value,
+        name: document.getElementById('channel-rule-name').value,
+        description: document.getElementById('channel-rule-description').value,
         matchType: 'DATABASE',
         triggerValue: '',
-        guildId: document.getElementById('rule-guild-id').value,
-        roleId: document.getElementById('rule-role-id').value,
-        allowedChannelId: document.getElementById('rule-channel-id').value,
-        deleteDelaySeconds: parseInt(document.getElementById('rule-delete-delay').value, 10) || 0,
+        guildId: document.getElementById('channel-rule-guild-id').value,
+        roleId: document.getElementById('channel-rule-role-id').value,
+        allowedChannelId: document.getElementById('channel-rule-channel-id').value,
+        deleteDelaySeconds: parseInt(document.getElementById('channel-rule-delete-delay').value, 10) || 0,
         enableDM: false,
         isIVR: false,
-        successMessage: document.getElementById('rule-success-msg').value,
-        errorMessage: document.getElementById('rule-error-msg').value,
-        active: document.getElementById('rule-active').checked
+        successMessage: document.getElementById('channel-rule-success-msg').value,
+        errorMessage: document.getElementById('channel-rule-error-msg').value,
+        active: document.getElementById('channel-rule-active').checked
       };
 
       try {
@@ -429,10 +429,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await res.json();
         if (data.success) {
-          showToast(id ? 'Regra de canal atualizada!' : 'Nova regra de canal criada!', 'success');
-          goToWizardStep(2);
+          showToast(id ? 'Regra de canal atualizada!' : 'Nova regra de canal salva!', 'success');
+          formChannelRule.reset();
+          document.getElementById('channel-rule-id').value = '';
           fetchRules();
           fetchBotStatus();
+          goToChannelStep(1);
         } else {
           showToast(data.error || 'Erro ao salvar regra.', 'error');
         }
@@ -459,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 4. REGRAS DE DM & URA MULTI-NÍVEL (PASSO 3 DO WIZARD) ---
+  // --- 4. REGRAS DE DM & URA MULTI-NÍVEL (WIZARD 2) ---
   async function fetchDMRules() {
     try {
       const res = await fetch('/api/dm-rules');
@@ -757,35 +759,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // SALVAR URA MULTI-NÍVEL
-  const formURATree = document.getElementById('form-ura-tree');
-  if (formURATree) {
-    formURATree.addEventListener('submit', async (e) => {
-      e.preventDefault();
+  // SALVAR URA MULTI-NÍVEL NO PASSO 3 DO WIZARD DE DM
+  async function saveURATree() {
+    dmRulesState.greeting = {
+      enabled: true,
+      message: document.getElementById('ura-greeting-msg').value
+    };
 
-      dmRulesState.greeting = {
-        enabled: true,
-        message: document.getElementById('ura-greeting-msg').value
-      };
+    try {
+      const res = await fetch('/api/dm-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dmRulesState)
+      });
+      const data = await res.json();
 
-      try {
-        const res = await fetch('/api/dm-rules', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(dmRulesState)
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          showToast('Árvore de URA e Consequências salvas com sucesso!', 'success');
-        } else {
-          showToast('Erro ao salvar URA.', 'error');
-        }
-      } catch (err) {
-        console.error('Erro ao salvar URA:', err);
-        showToast('Erro de conexão.', 'error');
+      if (data.success) {
+        showToast('Árvore de URA e Consequências salvas com sucesso!', 'success');
+      } else {
+        showToast('Erro ao salvar URA.', 'error');
       }
-    });
+    } catch (err) {
+      console.error('Erro ao salvar URA:', err);
+      showToast('Erro de conexão.', 'error');
+    }
+  }
+
+  const btnSaveStep3 = document.getElementById('btn-save-ura-tree-step3');
+  if (btnSaveStep3) {
+    btnSaveStep3.addEventListener('click', saveURATree);
   }
 
   // --- GATILHOS DE DM (DM TRIGGERS) ---
@@ -893,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- 5. BASE DE MATRÍCULAS (ABA INDEPENDENTE NO MENU LATERAL) ---
+  // --- 5. BASE DE MATRÍCULAS (ABA INDEPENDENTE) ---
   async function fetchMatriculas() {
     try {
       const res = await fetch('/api/matriculas');
@@ -1007,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 6. ENVIAR DM ---
+  // --- 6. ENVIAR DM AVULSA ---
   const formSendDM = document.getElementById('form-send-dm');
   if (formSendDM) {
     formSendDM.addEventListener('submit', async (e) => {
