@@ -463,15 +463,25 @@
               </div>
             </form>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; flex-wrap: wrap;">
               <h4 style="color: var(--color-primary); font-family: var(--font-heading); font-size: 1.05rem;">
                 <i class="fa-solid fa-list-check"></i> Lista de Matrículas Autorizadas
               </h4>
 
-              <!-- BARRA DE PESQUISA EM TEMPO REAL -->
-              <div style="position: relative; min-width: 320px;">
-                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gradient-blue-mid);"></i>
-                <input type="text" id="input-search-matricula" placeholder="Pesquisar matrícula..." style="padding-left: 40px; background: var(--color-white);">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <!-- BOTÕES DE EXCLUSÃO EM MASSA -->
+                <button type="button" class="btn btn-danger" id="btn-delete-selected-matriculas" style="display: none;">
+                  <i class="fa-solid fa-trash"></i> Excluir Selecionadas (<span id="selected-matriculas-count">0</span>)
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-delete-filtered-matriculas" style="border-color: #dc2626; color: #dc2626;">
+                  <i class="fa-solid fa-filter-circle-xmark"></i> Excluir Todas as Filtradas
+                </button>
+
+                <!-- BARRA DE PESQUISA EM TEMPO REAL -->
+                <div style="position: relative; min-width: 260px;">
+                  <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gradient-blue-mid);"></i>
+                  <input type="text" id="input-search-matricula" placeholder="Pesquisar matrícula..." style="padding-left: 40px; background: var(--color-white);">
+                </div>
               </div>
             </div>
 
@@ -479,6 +489,9 @@
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th style="width: 40px; text-align: center;">
+                      <input type="checkbox" id="select-all-matriculas" title="Selecionar todas as visíveis">
+                    </th>
                     <th>#</th>
                     <th>Matrícula Autorizada</th>
                     <th>Status</th>

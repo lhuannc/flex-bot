@@ -124,6 +124,33 @@ function removerMatricula(matricula) {
 }
 
 /**
+ * Remove um lote de matrículas em massa
+ * @param {Array<string>} itemsToRemove 
+ * @returns {{ removedCount: number, totalMatriculas: number, matriculas: Array<string> }}
+ */
+function removerMatriculasEmMassa(itemsToRemove) {
+  if (!Array.isArray(itemsToRemove) || itemsToRemove.length === 0) {
+    const atual = getMatriculas();
+    return { removedCount: 0, totalMatriculas: atual.length, matriculas: atual };
+  }
+
+  const setRemover = new Set(itemsToRemove.map(m => String(m).trim()));
+  const listaAtual = getMatriculas();
+  const totalOriginal = listaAtual.length;
+
+  const novaLista = listaAtual.filter(m => !setRemover.has(String(m).trim()));
+  const removedCount = totalOriginal - novaLista.length;
+
+  saveMatriculas(novaLista);
+
+  return {
+    removedCount,
+    totalMatriculas: novaLista.length,
+    matriculas: novaLista
+  };
+}
+
+/**
  * Salva a lista inteira de matrículas no JSON
  * @param {Array<string>} lista 
  */
@@ -142,5 +169,6 @@ module.exports = {
   adicionarMatricula,
   adicionarMatriculasEmMassa,
   removerMatricula,
+  removerMatriculasEmMassa,
   saveMatriculas
 };

@@ -37,7 +37,7 @@ function createWebServer() {
     });
   });
 
-  // 2. Base de Matrículas (CRUD & Importação em Massa)
+  // 2. Base de Matrículas (CRUD & Importação / Exclusão em Massa)
   app.get('/api/matriculas', (req, res) => {
     res.json(databaseService.getMatriculas());
   });
@@ -68,6 +68,22 @@ function createWebServer() {
     res.json({
       success: true,
       addedCount: result.addedCount,
+      totalMatriculas: result.totalMatriculas,
+      matriculas: result.matriculas
+    });
+  });
+
+  app.post('/api/matriculas/delete-bulk', (req, res) => {
+    const { matriculas } = req.body;
+
+    if (!Array.isArray(matriculas) || matriculas.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma matrícula selecionada para exclusão.' });
+    }
+
+    const result = databaseService.removerMatriculasEmMassa(matriculas);
+    res.json({
+      success: true,
+      removedCount: result.removedCount,
       totalMatriculas: result.totalMatriculas,
       matriculas: result.matriculas
     });

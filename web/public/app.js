@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentGuildChannels = [];
   let rulesCache = [];
   let allMatriculasCache = [];
+  let selectedMatriculasSet = new Set();
   let dmRulesState = { greeting: { enabled: true, message: '' }, ivrTree: [] };
 
   function switchTab(targetTabId) {
@@ -303,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 3. REGRAS DE CANAIS (WIZARD 1) ---
+  // --- 3. REGRAS DE CANAIS ---
   async function fetchRules() {
     try {
       const res = await fetch('/api/rules');
@@ -461,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- 4. REGRAS DE DM & URA MULTI-NÍVEL (WIZARD 2) ---
+  // --- 4. REGRAS DE DM & URA MULTI-NÍVEL ---
   async function fetchDMRules() {
     try {
       const res = await fetch('/api/dm-rules');
@@ -895,11 +896,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- 5. BASE DE MATRÍCULAS (ABA INDEPENDENTE) ---
+  // --- 5. BASE DE MATRÍCULAS (SELEÇÃO E EXCLUSÃO EM MASSA) ---
   async function fetchMatriculas() {
     try {
       const res = await fetch('/api/matriculas');
       allMatriculasCache = await res.json();
+      selectedMatriculasSet.clear();
       filterAndRenderMatriculas();
     } catch (err) {
       console.error('Erro ao buscar matrículas:', err);
@@ -921,28 +923,168 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderMatriculasTable(list) {
     const tbody = document.getElementById('matriculas-table-body');
+    const selectAllCheckbox = document.getElementById('select-all-matriculas');
     if (!tbody) return;
 
     if (!list || list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 24px;">Nenhuma matrícula encontrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-text-muted); padding: 24px;">Nenhuma matrícula encontrada.</td></tr>';
+      if (selectAllCheckbox) selectAllCheckbox.checked = false;
+      updateBulkDeleteButtons(list);
       return;
     }
 
-    tbody.innerHTML = list.map((item, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td><strong>${escapeHtml(item)}</strong></td>
-        <td><span class="badge badge-success">Válida</span></td>
-        <td>
-          <button class="btn btn-danger btn-delete-matricula" data-numero="${escapeHtml(item)}">
-            <i class="fa-solid fa-trash"></i> Remover
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = list.map((item, idx) => {
+      const isChecked = selectedMatriculasSet.has(item) ? 'checked' : '';
+      return `
+        <tr>
+          <td style="text-align: center;">
+            <input type="checkbox" class="matricula-checkbox" data-numero="${escapeHtml(item)}" ${isChecked}>
+          </td>
+          <td>${idx + 1}</td>
+          <td><strong>${escapeHtml(item)}</strong></td>
+          <td><span class="badge badge-success">Válida</span></td>
+          <td>
+            <button class="btn btn-danger btn-delete-matricula" data-numero="${escapeHtml(item)}">
+              <i class="fa-solid fa-trash"></i> Remover
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Adiciona handlers nas checkboxes individuais
+    document.querySelectorAll('.matricula-checkbox').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const num = cb.getAttribute('data-numero');
+        if (cb.checked) {
+          selectedMatriculasSet.add(num);
+        } else {
+          selectedMatriculasSet.delete(num);
+        }
+        updateBulkDeleteButtons(list);
+      });
+    });
+
+    // Handler da checkbox de Selecionar Todos
+    if (selectAllCheckbox) {
+      selectAllCheckbox.onclick = () => {
+        const checkAll = selectAllCheckbox.checked;
+        list.forEach(item => {
+          if (checkAll) {
+            selectedMatriculasSet.add(item);
+          } else {
+            selectedMatriculasSet.delete(item);
+          }
+        });
+        document.querySelectorAll('.matricula-checkbox').forEach(cb => {
+          cb.checked = checkAll;
+        });
+        updateBulkDeleteButtons(list);
+      };
+    }
 
     document.querySelectorAll('.btn-delete-matricula').forEach(btn => {
       btn.addEventListener('click', () => deleteMatricula(btn.dataset.numero));
+    });
+
+    updateBulkDeleteButtons(list);
+  }
+
+  function updateBulkDeleteButtons(currentFilteredList = []) {
+    const btnDeleteSelected = document.getElementById('btn-delete-selected-matriculas');
+    const selectedCountSpan = document.getElementById('selected-matriculas-count');
+    const btnDeleteFiltered = document.getElementById('btn-delete-filtered-matriculas');
+
+    const selectedSize = selectedMatriculasSet.size;
+    if (selectedCountSpan) selectedCountSpan.textContent = selectedSize;
+
+    if (btnDeleteSelected) {
+      if (selectedSize > 0) {
+        btnDeleteSelected.style.display = 'inline-flex';
+      } else {
+        btnDeleteSelected.style.display = 'none';
+      }
+    }
+
+    if (btnDeleteFiltered) {
+      const filteredCount = currentFilteredList.length;
+      btnDeleteFiltered.innerHTML = `<i class="fa-solid fa-filter-circle-xmark"></i> Excluir Todas as ${filteredCount} Filtradas`;
+      btnDeleteFiltered.style.display = filteredCount > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  // EVENTO: EXCLUIR SELECIONADAS EM MASSA
+  const btnDeleteSelected = document.getElementById('btn-delete-selected-matriculas');
+  if (btnDeleteSelected) {
+    btnDeleteSelected.addEventListener('click', async () => {
+      const itemsToRemove = Array.from(selectedMatriculasSet);
+      if (itemsToRemove.length === 0) return;
+
+      if (!confirm(`⚠️ Tem certeza que deseja excluir ${itemsToRemove.length} matrículas selecionadas da base?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/matriculas/delete-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matriculas: itemsToRemove })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showToast(`🎉 ${data.removedCount} matrículas excluídas com sucesso! Total restante: ${data.totalMatriculas}`, 'success');
+          allMatriculasCache = data.matriculas;
+          selectedMatriculasSet.clear();
+          filterAndRenderMatriculas();
+          fetchBotStatus();
+        } else {
+          showToast(data.error || 'Erro ao excluir matrículas em massa.', 'error');
+        }
+      } catch (err) {
+        console.error('Erro na exclusão em massa:', err);
+        showToast('Erro de conexão com o servidor.', 'error');
+      }
+    });
+  }
+
+  // EVENTO: EXCLUIR TODAS AS FILTRADAS EM MASSA
+  const btnDeleteFiltered = document.getElementById('btn-delete-filtered-matriculas');
+  if (btnDeleteFiltered) {
+    btnDeleteFiltered.addEventListener('click', async () => {
+      const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const filtered = allMatriculasCache.filter(m => m.toLowerCase().includes(query));
+
+      if (filtered.length === 0) {
+        showToast('Nenhuma matrícula visível/filtrada para excluir.', 'error');
+        return;
+      }
+
+      if (!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja excluir TODAS as ${filtered.length} matrículas atualmente filtradas?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/matriculas/delete-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matriculas: filtered })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showToast(`🎉 ${data.removedCount} matrículas filtradas excluídas com sucesso! Total restante: ${data.totalMatriculas}`, 'success');
+          allMatriculasCache = data.matriculas;
+          selectedMatriculasSet.clear();
+          filterAndRenderMatriculas();
+          fetchBotStatus();
+        } else {
+          showToast(data.error || 'Erro ao excluir matrículas filtradas.', 'error');
+        }
+      } catch (err) {
+        console.error('Erro na exclusão de filtradas:', err);
+        showToast('Erro de conexão com o servidor.', 'error');
+      }
     });
   }
 
@@ -974,6 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(`🎉 Sucesso! ${data.addedCount} novas matrículas cadastradas na base. Total: ${data.totalMatriculas}`, 'success');
           textarea.value = '';
           allMatriculasCache = data.matriculas;
+          selectedMatriculasSet.clear();
           filterAndRenderMatriculas();
           fetchBotStatus();
         } else {
@@ -999,6 +1142,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok && data.success) {
         showToast(`Matrícula ${numero} removida.`, 'success');
         allMatriculasCache = data.matriculas;
+        selectedMatriculasSet.delete(numero);
         filterAndRenderMatriculas();
         fetchBotStatus();
       } else {
