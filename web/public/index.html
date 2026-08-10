@@ -27,20 +27,17 @@
       </div>
 
       <nav class="nav-menu">
-        <button class="nav-btn active" data-tab="overview-tab" id="btn-tab-overview">
-          <i class="fa-solid fa-chart-pie"></i> Visão Geral
+        <div class="nav-section-label">CONFIGURAÇÕES DO BOT</div>
+        <button class="nav-btn active" data-tab="wizard-tab" id="btn-tab-wizard">
+          <i class="fa-solid fa-sliders"></i> Assistente Guiado
         </button>
-        <button class="nav-btn" data-tab="rules-tab" id="btn-tab-rules">
-          <i class="fa-solid fa-hashtag"></i> Regras de Canais
-        </button>
-        <button class="nav-btn" data-tab="welcome-tab" id="btn-tab-welcome">
-          <i class="fa-solid fa-sitemap"></i> Regras de DM & URA Multi-Nível
-        </button>
+
+        <div class="nav-section-label" style="margin-top: 16px;">GESTÃO DE DADOS</div>
         <button class="nav-btn" data-tab="database-tab" id="btn-tab-database">
           <i class="fa-solid fa-database"></i> Base de Matrículas
         </button>
         <button class="nav-btn" data-tab="dm-tab" id="btn-tab-dm">
-          <i class="fa-solid fa-envelope-open-text"></i> Disparo de DMs
+          <i class="fa-solid fa-paper-plane"></i> DM Avulsa
         </button>
       </nav>
 
@@ -58,97 +55,257 @@
       <!-- Header Bar -->
       <header class="top-header">
         <div class="header-title">
-          <h1 id="page-title">Visão Geral do FlexBot<span class="triangulo-ponto"></span></h1>
-          <p id="page-subtitle">Sistema oficial de validação de matrículas corporativas da Prefeitura do Rio.</p>
+          <h1 id="page-title">Assistente de Configurações<span class="triangulo-ponto"></span></h1>
+          <p id="page-subtitle">Configure o FlexBot em 3 passos simples e intuitivos.</p>
         </div>
         <div class="header-actions">
           <button class="btn btn-outline" id="btn-refresh"><i class="fa-solid fa-arrows-rotate"></i> Atualizar Dados</button>
         </div>
       </header>
 
-      <!-- TAB 1: OVERVIEW -->
-      <section class="tab-content active" id="overview-tab">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon purple">
-              <i class="fa-solid fa-id-card"></i>
-            </div>
-            <div class="stat-data">
-              <span class="stat-value" id="stat-matriculas">0</span>
-              <span class="stat-label">Matrículas Autorizadas</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon cyan">
-              <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <div class="stat-data">
-              <span class="stat-value" id="stat-regras-ativas">0</span>
-              <span class="stat-label">Regras Ativas</span>
+      <!-- TAB 1: STEP-BY-STEP CONFIGURATION WIZARD -->
+      <section class="tab-content active" id="wizard-tab">
+        <!-- BARRA DE PROGRESSO VISUAL DO WIZARD (3 PASSOS) -->
+        <div class="wizard-stepper">
+          <div class="wizard-step-item active" data-step="1" id="step-indicator-1">
+            <div class="step-badge">1</div>
+            <div class="step-info">
+              <span class="step-title">Conexão Discord</span>
+              <span class="step-sub">Servidor & Cargo</span>
             </div>
           </div>
+          <div class="step-connector"></div>
 
-          <div class="stat-card">
-            <div class="stat-icon green">
-              <i class="fa-solid fa-robot"></i>
+          <div class="wizard-step-item" data-step="2" id="step-indicator-2">
+            <div class="step-badge">2</div>
+            <div class="step-info">
+              <span class="step-title">Regras de Canais</span>
+              <span class="step-sub">Canais Autorizados</span>
             </div>
-            <div class="stat-data">
-              <span class="stat-value" id="stat-bot-online">Online</span>
-              <span class="stat-label">Status da Conexão</span>
+          </div>
+          <div class="step-connector"></div>
+
+          <div class="wizard-step-item" data-step="3" id="step-indicator-3">
+            <div class="step-badge">3</div>
+            <div class="step-info">
+              <span class="step-title">Atendimento DM & URA</span>
+              <span class="step-sub">1º Ingresso, Disparos & URA</span>
             </div>
           </div>
         </div>
 
-        <div class="content-card">
-          <div class="card-header">
-            <h3><i class="fa-solid fa-circle-info"></i> Como funciona a validação pela base de matrículas?<span class="triangulo-ponto"></span></h3>
+        <!-- PASSO 1: CONEXÃO E SERVIDOR DISCORD -->
+        <div class="wizard-panel active" id="wizard-step-1">
+          <div class="stats-grid" style="margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="stat-icon green">
+                <i class="fa-solid fa-robot"></i>
+              </div>
+              <div class="stat-data">
+                <span class="stat-value" id="stat-bot-online">Online</span>
+                <span class="stat-label">Status do Bot</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon purple">
+                <i class="fa-solid fa-server"></i>
+              </div>
+              <div class="stat-data">
+                <span class="stat-value" id="stat-guild-name">Conectando...</span>
+                <span class="stat-label">Servidor Conectado</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon cyan">
+                <i class="fa-solid fa-id-card"></i>
+              </div>
+              <div class="stat-data">
+                <span class="stat-value" id="stat-matriculas">0</span>
+                <span class="stat-label">Matrículas na Base</span>
+              </div>
+            </div>
           </div>
-          <div class="card-body">
-            <div class="workflow-steps">
-              <div class="step">
-                <div class="step-num">1</div>
-                <div class="step-desc">
-                  <strong>Recepção da Matrícula</strong>
-                  <p>O usuário envia o código no canal autorizado do servidor ou responde a mensagem privada (DM) do FlexBot.</p>
+
+          <div class="content-card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-server" style="color: var(--color-gradient-blue-mid);"></i> Passo 1: Seleção do Servidor e Cargo Padrão<span class="triangulo-ponto"></span></h3>
+                <p>Verifique o status do bot e selecione o servidor do Discord e cargo principal de acesso.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <form id="form-step-1" class="form-grid">
+                <div class="form-group">
+                  <label for="step1-guild-id">Servidor do Discord (Guild) *</label>
+                  <select id="step1-guild-id" required>
+                    <option value="">Carregando servidores do Discord...</option>
+                  </select>
+                  <small>Selecione o servidor onde o FlexBot está instalado.</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="step1-role-id">Cargo Padrão a Atribuir (Role) *</label>
+                  <select id="step1-role-id" required>
+                    <option value="">Selecione um servidor primeiro...</option>
+                  </select>
+                  <small>Cargo concedido aos membros após a validação da matrícula.</small>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="wizard-actions">
+            <div></div> <!-- Espaçador à esquerda -->
+            <button class="btn btn-primary btn-next-step" data-next="2">
+              Próximo Passo: Regras de Canais <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- PASSO 2: REGRAS DE CANAIS DE TEXTO -->
+        <div class="wizard-panel" id="wizard-step-2">
+          <div class="content-card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-hashtag" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Regras de Automação em Canais de Texto<span class="triangulo-ponto"></span></h3>
+                <p>Configure quais canais do servidor aceitarão a validação e defina o tempo de auto-deleção da mensagem de resposta.</p>
+              </div>
+              <button class="btn btn-primary" id="btn-add-rule"><i class="fa-solid fa-plus"></i> Nova Regra de Canal</button>
+            </div>
+            <div class="card-body">
+              <div id="rules-container" class="rules-list"></div>
+            </div>
+          </div>
+
+          <div class="wizard-actions">
+            <button class="btn btn-outline btn-prev-step" data-prev="1">
+              <i class="fa-solid fa-arrow-left"></i> Passo Anterior
+            </button>
+            <button class="btn btn-primary btn-next-step" data-next="3">
+              Próximo Passo: Atendimento DM & URA <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- PASSO 3: ATENDIMENTO PRIVADO (DM, URA MULTI-NÍVEL & DISPAROS) -->
+        <div class="wizard-panel" id="wizard-step-3">
+          <!-- 1. GATILHOS DE MENSAGEM DIRETA -->
+          <form id="form-dm-triggers" class="form-grid-page" style="margin-bottom: 24px;">
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Passo 3.1: Gatilhos de Mensagem Privada (DM)<span class="triangulo-ponto"></span></h3>
+                  <p>Mensagens de boas-vindas para novos membros (1º Ingresso) e comunicado para membros atuais (Broadcast).</p>
                 </div>
               </div>
-              <div class="step">
-                <div class="step-num">2</div>
-                <div class="step-desc">
-                  <strong>Consulta à Base (`matriculas.json`)</strong>
-                  <p>O FlexBot consulta se a matrícula consta na base autorizada oficial da Prefeitura do Rio.</p>
-                </div>
-              </div>
-              <div class="step">
-                <div class="step-num">3</div>
-                <div class="step-desc">
-                  <strong>Concessão do Cargo no Servidor</strong>
-                  <p>Caso a matrícula seja válida, o cargo (Role) parametrizado na regra é atribuído automaticamente.</p>
+              <div class="card-body">
+                <div class="form-grid" style="max-width: 100%;">
+                  
+                  <!-- GATILHO 1: PRIMEIRO INGRESSO -->
+                  <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
+                    <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                      <label class="switch">
+                        <input type="checkbox" id="trigger-server-join-enabled" checked>
+                        <span class="slider round"></span>
+                      </label>
+                      <span style="font-weight: 800; color: var(--color-primary);">🟢 Mensagem para PRIMEIRO INGRESSO (Novos Membros que entram no servidor)</span>
+                    </div>
+                    <div class="form-group">
+                      <label for="trigger-server-join-msg">Mensagem Privada de Boas-Vindas (1º Acesso) *</label>
+                      <textarea id="trigger-server-join-msg" rows="3" placeholder="👋 **Olá {user}! Seja bem-vindo(a) pela primeira vez ao servidor {server}!**&#10;&#10;Por favor, envie sua matrícula aqui no privado para liberar seu cargo de acesso."></textarea>
+                    </div>
+                  </div>
+
+                  <!-- GATILHO 2: MEMBROS JÁ EXISTENTES -->
+                  <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
+                    <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                      <label class="switch">
+                        <input type="checkbox" id="trigger-existing-enabled" checked>
+                        <span class="slider round"></span>
+                      </label>
+                      <span style="font-weight: 800; color: var(--color-primary);">📢 Mensagem para MEMBROS JÁ EXISTENTES no Servidor</span>
+                    </div>
+                    <div class="form-group">
+                      <label for="trigger-existing-msg">Mensagem Privada para Membros Atuais *</label>
+                      <textarea id="trigger-existing-msg" rows="3" placeholder="📢 **Olá {user}! Comunicado Oficial da Prefeitura do Rio - Servidor {server}.**&#10;&#10;Para atualizar e validar seu acesso aos canais, responda a esta mensagem enviando sua matrícula."></textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                      <button type="button" class="btn btn-outline" id="btn-broadcast-existing" style="border-color: var(--color-gradient-blue-mid);">
+                        <i class="fa-solid fa-bullhorn"></i> Disparar Mensagem para Todos os Membros Atuais do Servidor
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- GATILHO 3: PALAVRAS-CHAVE -->
+                  <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
+                    <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                      <label class="switch">
+                        <input type="checkbox" id="trigger-keyword-enabled" checked>
+                        <span class="slider round"></span>
+                      </label>
+                      <span style="font-weight: 800; color: var(--color-primary);">💬 Resposta a Saudações na DM (Palavras-Chave)</span>
+                    </div>
+                    <div class="form-group">
+                      <label for="trigger-keywords-list">Palavras-Chave de Ativação (Separadas por vírgula)</label>
+                      <input type="text" id="trigger-keywords-list" placeholder="oi, olá, ola, ajuda, matricula, menu, iniciar, bom dia">
+                    </div>
+                  </div>
+
+                  <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações de DM</button>
+                  </div>
                 </div>
               </div>
             </div>
+          </form>
+
+          <!-- 2. URA MULTI-NÍVEL -->
+          <div class="content-card">
+            <div class="card-header">
+              <div>
+                <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Passo 3.2: Árvore de Atendimento URA Multi-Nível<span class="triangulo-ponto"></span></h3>
+                <p>Estruture as opções de atendimento automático e as consequências combináveis da ação (Mensagem, Cargo, Matrícula e/ou Submenu).</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <form id="form-ura-tree">
+                <div class="form-group" style="margin-bottom: 24px;">
+                  <label for="ura-greeting-msg">Mensagem Principal de Apresentação do Menu URA *</label>
+                  <textarea id="ura-greeting-msg" rows="3" required placeholder="👋 **Olá {user}! Seja bem-vindo(a) ao atendimento da Prefeitura do Rio.**&#10;&#10;Por favor, selecione uma das opções abaixo:"></textarea>
+                </div>
+
+                <div class="ivr-box">
+                  <h4><i class="fa-solid fa-list-ol"></i> Estrutura do Menu de Atendimento (Nível Principal)</h4>
+                  <div id="ura-root-options-container"></div>
+
+                  <button type="button" class="btn btn-outline" id="btn-add-root-option" style="margin-top: 16px;">
+                    <i class="fa-solid fa-plus"></i> Adicionar Opção ao Menu Principal
+                  </button>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+                  <button type="submit" class="btn btn-primary" id="btn-save-ura-tree">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar URA Multi-Nível
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="wizard-actions">
+            <button class="btn btn-outline btn-prev-step" data-prev="2">
+              <i class="fa-solid fa-arrow-left"></i> Passo Anterior
+            </button>
+            <button class="btn btn-primary" id="btn-finish-wizard">
+              <i class="fa-solid fa-circle-check"></i> Concluir Configuração
+            </button>
           </div>
         </div>
       </section>
 
-      <!-- TAB 2: REGRAS DE CANAIS -->
-      <section class="tab-content" id="rules-tab">
-        <div class="content-card">
-          <div class="card-header">
-            <div>
-              <h3><i class="fa-solid fa-hashtag"></i> Regras de Automação de Canais<span class="triangulo-ponto"></span></h3>
-              <p>Defina regras exclusivas para validação de matrículas em canais de texto do Discord.</p>
-            </div>
-            <button class="btn btn-primary" id="btn-add-rule"><i class="fa-solid fa-plus"></i> Nova Regra de Canal</button>
-          </div>
-          <div class="card-body">
-            <div id="rules-container" class="rules-list"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 2.5: RULE EDITOR PAGE -->
+      <!-- TAB 1.5: EDITOR DE REGRA DE CANAL (SUBTELA) -->
       <section class="tab-content" id="rule-editor-tab">
         <div class="content-card">
           <div class="card-header">
@@ -156,7 +313,7 @@
               <h3 id="rule-editor-title"><i class="fa-solid fa-pen-to-square"></i> Cadastrar Regra de Canal<span class="triangulo-ponto"></span></h3>
               <p>Configure o servidor, cargo, canal exclusivo, tempo de auto-deleção e mensagens de resposta.</p>
             </div>
-            <button class="btn btn-outline" id="btn-back-to-rules"><i class="fa-solid fa-arrow-left"></i> Voltar para Lista de Regras</button>
+            <button class="btn btn-outline" id="btn-back-to-rules"><i class="fa-solid fa-arrow-left"></i> Voltar para o Passo 2</button>
           </div>
           <div class="card-body">
             <form id="form-rule" class="form-grid-page">
@@ -175,7 +332,6 @@
               </div>
 
               <div class="form-row">
-                <!-- SERVIDOR DISCORD -->
                 <div class="form-group">
                   <label for="rule-guild-id">Servidor do Discord (Guild) *</label>
                   <select id="rule-guild-id">
@@ -183,7 +339,6 @@
                   </select>
                 </div>
 
-                <!-- CARGO A ATRIBUIR -->
                 <div class="form-group">
                   <label for="rule-role-id">Cargo a Atribuir (Role) *</label>
                   <select id="rule-role-id">
@@ -191,7 +346,6 @@
                   </select>
                 </div>
 
-                <!-- CANAL ESPECÍFICO DO DISCORD -->
                 <div class="form-group">
                   <label for="rule-channel-id">Canal Específico Autorizado *</label>
                   <select id="rule-channel-id" required>
@@ -200,24 +354,20 @@
                 </div>
               </div>
 
-              <!-- TEMPO DE AUTO-DELEÇÃO DA MENSAGEM NO CANAL -->
               <div class="form-group">
                 <label for="rule-delete-delay">Tempo para Auto-Deletar a Mensagem de Resposta (em segundos) *</label>
                 <input type="number" id="rule-delete-delay" min="0" max="3600" value="10" required placeholder="Ex: 10 (ou 0 para não deletar)">
-                <small>💡 Digite <strong>0</strong> se quiser que a mensagem de resposta permaneça no canal sem ser apagada.</small>
+                <small>Digite <strong>0</strong> se quiser que a mensagem de resposta permaneça no canal sem ser apagada.</small>
               </div>
 
-              <!-- MENSAGENS DE RESPOSTA DO CANAL CUSTOMIZÁVEIS -->
               <div class="form-group">
                 <label for="rule-success-msg">Mensagem de Resposta do Canal (Sucesso) *</label>
                 <textarea id="rule-success-msg" rows="2" required placeholder="✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído."></textarea>
-                <small>Dica de Tags: <code>{user}</code> menciona o usuário, <code>{role}</code> exibe o cargo e <code>{server}</code> o nome do servidor.</small>
               </div>
 
               <div class="form-group">
                 <label for="rule-error-msg">Mensagem de Resposta do Canal (Erro) *</label>
                 <textarea id="rule-error-msg" rows="2" required placeholder="❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados."></textarea>
-                <small>Dica de Tags: <code>{user}</code> menciona o usuário e <code>{server}</code> o nome do servidor.</small>
               </div>
 
               <div class="form-group checkbox-group">
@@ -237,125 +387,13 @@
         </div>
       </section>
 
-      <!-- TAB 3: REGRAS DE DM & URA MULTI-NÍVEL -->
-      <section class="tab-content" id="welcome-tab">
-        <!-- 1. GATILHOS DE DM (PRIMEIRO INGRESSO VS MEMBROS EXISTENTES) -->
-        <form id="form-dm-triggers" class="form-grid-page" style="margin-bottom: 32px;">
-          <div class="content-card">
-            <div class="card-header">
-              <div>
-                <h3><i class="fa-solid fa-paper-plane" style="color: var(--color-gradient-blue-mid);"></i> Gatilhos e Mensagens de Disparo em DM<span class="triangulo-ponto"></span></h3>
-                <p>Configure mensagens específicas para novos ingressantes (1º Acesso) e para membros já existentes no servidor.</p>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="form-grid" style="max-width: 100%;">
-                
-                <!-- GATILHO 1: PRIMEIRO INGRESSO (GuildMemberAdd) -->
-                <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
-                  <div class="form-group checkbox-group" style="margin-bottom: 12px;">
-                    <label class="switch">
-                      <input type="checkbox" id="trigger-server-join-enabled" checked>
-                      <span class="slider round"></span>
-                    </label>
-                    <span style="font-weight: 800; color: var(--color-primary);">🟢 Mensagem para PRIMEIRO INGRESSO (Novos Membros que entram no servidor)</span>
-                  </div>
-                  <div class="form-group">
-                    <label for="trigger-server-join-msg">Mensagem Privada de Boas-Vindas (1º Acesso) *</label>
-                    <textarea id="trigger-server-join-msg" rows="3" placeholder="👋 **Olá {user}! Seja bem-vindo(a) pela primeira vez ao servidor {server}!**&#10;&#10;Por favor, envie sua matrícula aqui no privado para liberar seu cargo de acesso."></textarea>
-                    <small>Enviada automaticamente na DM no exato momento em que um novo usuário entra no servidor do Discord.</small>
-                  </div>
-                </div>
-
-                <!-- GATILHO 2: MEMBROS JÁ EXISTENTES NO SERVIDOR -->
-                <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light); margin-bottom: 20px;">
-                  <div class="form-group checkbox-group" style="margin-bottom: 12px;">
-                    <label class="switch">
-                      <input type="checkbox" id="trigger-existing-enabled" checked>
-                      <span class="slider round"></span>
-                    </label>
-                    <span style="font-weight: 800; color: var(--color-primary);">📢 Mensagem para MEMBROS JÁ EXISTENTES no Servidor</span>
-                  </div>
-                  <div class="form-group">
-                    <label for="trigger-existing-msg">Mensagem Privada para Membros Atuais *</label>
-                    <textarea id="trigger-existing-msg" rows="3" placeholder="📢 **Olá {user}! Comunicado Oficial da Prefeitura do Rio - Servidor {server}.**&#10;&#10;Para atualizar e validar seu acesso aos canais, responda a esta mensagem enviando sua matrícula."></textarea>
-                    <small>Mensagem direcionada aos membros que já pertencem ao servidor do Discord.</small>
-                  </div>
-                  <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
-                    <button type="button" class="btn btn-outline" id="btn-broadcast-existing" style="border-color: var(--color-gradient-blue-mid);">
-                      <i class="fa-solid fa-bullhorn"></i> Disparar Mensagem para Todos os Membros Atuais do Servidor
-                    </button>
-                  </div>
-                </div>
-
-                <!-- GATILHO 3: PALAVRAS-CHAVE -->
-                <div style="background: #f8fafc; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
-                  <div class="form-group checkbox-group" style="margin-bottom: 12px;">
-                    <label class="switch">
-                      <input type="checkbox" id="trigger-keyword-enabled" checked>
-                      <span class="slider round"></span>
-                    </label>
-                    <span style="font-weight: 800; color: var(--color-primary);">💬 Resposta a Saudações na DM (Palavras-Chave)</span>
-                  </div>
-                  <div class="form-group">
-                    <label for="trigger-keywords-list">Palavras-Chave de Ativação (Separadas por vírgula)</label>
-                    <input type="text" id="trigger-keywords-list" placeholder="oi, olá, ola, ajuda, matricula, menu, iniciar, bom dia">
-                  </div>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-                  <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações de Gatilhos</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </form>
-
-        <!-- 2. URA MULTI-NÍVEL COM CONSEQUÊNCIAS COMBINÁVEIS -->
-        <div class="content-card">
-          <div class="card-header">
-            <div>
-              <h3><i class="fa-solid fa-sitemap" style="color: var(--color-gradient-blue-mid);"></i> Construtor de URA Multi-Nível & Consequências das Ações<span class="triangulo-ponto"></span></h3>
-              <p>Estruture as opções do menu e combine as consequências desejadas para cada ação (Mensagem, Cargo, Matrícula e/ou Submenu).</p>
-            </div>
-          </div>
-          <div class="card-body">
-            <form id="form-ura-tree">
-              <div class="form-group" style="margin-bottom: 24px;">
-                <label for="ura-greeting-msg">Mensagem Principal de Boas-Vindas / Apresentação do Menu *</label>
-                <textarea id="ura-greeting-msg" rows="3" required placeholder="👋 **Olá {user}! Seja bem-vindo(a) ao atendimento da Prefeitura do Rio.**&#10;&#10;Por favor, selecione uma das opções abaixo:"></textarea>
-                <small>Dica: Use <code>{user}</code> para mencionar o usuário e <code>{server}</code> para o nome do servidor.</small>
-              </div>
-
-              <!-- ÁRVORE DE OPÇÕES ROOT DA URA -->
-              <div class="ivr-box">
-                <h4><i class="fa-solid fa-list-ol"></i> Estrutura do Menu de Atendimento (Nível Principal)</h4>
-                <p class="text-muted" style="margin-bottom: 16px;">Adicione as opções do menu. Marque as consequências que serão disparadas em resposta a cada opção (podem ser combinadas!).</p>
-
-                <div id="ura-root-options-container"></div>
-
-                <button type="button" class="btn btn-outline" id="btn-add-root-option" style="margin-top: 16px;">
-                  <i class="fa-solid fa-plus"></i> Adicionar Opção ao Menu Principal
-                </button>
-              </div>
-
-              <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
-                <button type="submit" class="btn btn-primary" id="btn-save-ura-tree">
-                  <i class="fa-solid fa-floppy-disk"></i> Salvar URA Multi-Nível
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 4: DATABASE MANAGEMENT -->
+      <!-- TAB INDEPENDENTE 2: BASE OFICIAL DE MATRÍCULAS -->
       <section class="tab-content" id="database-tab">
         <div class="content-card">
           <div class="card-header">
             <div>
-              <h3><i class="fa-solid fa-database"></i> Cadastrar Base de Matrículas (`data/matriculas.json`) <span class="triangulo-ponto"></span></h3>
-              <p>Cole ou digite as matrículas autorizadas na área de texto abaixo (separadas por vírgula ou linha).</p>
+              <h3><i class="fa-solid fa-database"></i> Base Oficial de Matrículas (`matriculas.json`) <span class="triangulo-ponto"></span></h3>
+              <p>Cadastre, pesquise e gerencie as matrículas numéricas autorizadas no sistema corporativo.</p>
             </div>
           </div>
           <div class="card-body">
@@ -403,13 +441,13 @@
         </div>
       </section>
 
-      <!-- TAB 5: DM SENDER -->
+      <!-- TAB INDEPENDENTE 3: DM AVULSA -->
       <section class="tab-content" id="dm-tab">
         <div class="content-card">
           <div class="card-header">
             <div>
-              <h3><i class="fa-solid fa-paper-plane"></i> Enviar Mensagem Direta (DM) <span class="triangulo-ponto"></span></h3>
-              <p>Envie mensagens personalizadas diretamente para a DM de um usuário do Discord.</p>
+              <h3><i class="fa-solid fa-paper-plane"></i> Enviar Mensagem Direta Avulsa (DM) <span class="triangulo-ponto"></span></h3>
+              <p>Envie mensagens personalizadas diretamente para a DM de um usuário específico do Discord.</p>
             </div>
           </div>
           <div class="card-body">
@@ -417,7 +455,6 @@
               <div class="form-group">
                 <label for="dm-user-id">ID do Usuário Discord *</label>
                 <input type="text" id="dm-user-id" placeholder="Ex: 123456789012345678" required>
-                <small>Habilite o Modo Desenvolvedor no Discord para copiar o ID do usuário.</small>
               </div>
 
               <div class="form-group">
