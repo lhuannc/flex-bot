@@ -1,9 +1,24 @@
-const fs = require('fs');
-const path = require('path');
-const databaseService = require('./databaseService');
+import fs from 'node:fs';
+import path from 'node:path';
+import * as databaseService from './databaseService.js';
 
-const RULES_FILE = path.join(__dirname, '../data/rules.json');
-const WELCOME_FILE = path.join(__dirname, '../data/welcome.json');
+const RULES_FILE = path.join(import.meta.dirname, '../data/rules.json');
+const WELCOME_FILE = path.join(import.meta.dirname, '../data/welcome.json');
+
+/**
+ * Normaliza uma regra vinda do disco.
+ * Regras gravadas pela versão Discord do FlexBot usavam o campo `guildId`;
+ * no Stoat o conceito equivalente chama-se "servidor" (`serverId`).
+ */
+function normalizeRule(rule) {
+  if (!rule || typeof rule !== 'object') return rule;
+
+  const { guildId, ...rest } = rule;
+  return {
+    ...rest,
+    serverId: rule.serverId || guildId || ''
+  };
+}
 
 /**
  * Garante a existência dos arquivos de configuração
@@ -22,7 +37,7 @@ function ensureRulesFileExists() {
           description: 'Valida matrículas de 8 dígitos presentes na base oficial.',
           matchType: 'DATABASE',
           triggerValue: '',
-          guildId: process.env.GUILD_ID || '',
+          serverId: process.env.SERVER_ID || '',
           roleId: process.env.ROLE_ID || '',
           allowedChannelId: process.env.ALLOWED_CHANNEL_ID || '',
           allowedChannels: process.env.ALLOWED_CHANNEL_ID ? [process.env.ALLOWED_CHANNEL_ID] : [],
@@ -71,11 +86,12 @@ function ensureWelcomeFileExists() {
 /**
  * Retorna todas as regras cadastradas
  */
-function getRules() {
+export function getRules() {
   try {
     ensureRulesFileExists();
     const data = fs.readFileSync(RULES_FILE, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed.map(normalizeRule) : [];
   } catch (error) {
     console.error('[ruleService] Erro ao ler regras:', error);
     return [];
@@ -85,10 +101,10 @@ function getRules() {
 /**
  * Salva a lista de regras no JSON
  */
-function saveRules(rules) {
+export function saveRules(rules) {
   try {
     ensureRulesFileExists();
-    fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2), 'utf-8');
+    fs.writeFileSync(RULES_FILE, JSON.stringify(rules.map(normalizeRule), null, 2), 'utf-8');
   } catch (err) {
     console.error('[ruleService] Erro ao salvar regras no disco:', err);
   }
@@ -97,12 +113,12 @@ function saveRules(rules) {
 /**
  * Retorna as configurações de Boas-Vindas
  */
-function getWelcomeSettings() {
+export function getWelcomeSettings() {
   try {
     ensureWelcomeFileExists();
     const data = fs.readFileSync(WELCOME_FILE, 'utf-8');
     return JSON.parse(data);
-  } catch (error) {
+  } catch {
     return { enabled: false, sendDM: true, message: '' };
   }
 }
@@ -110,7 +126,7 @@ function getWelcomeSettings() {
 /**
  * Salva as configurações de Boas-Vindas
  */
-function saveWelcomeSettings(settings) {
+export function saveWelcomeSettings(settings) {
   try {
     ensureWelcomeFileExists();
     fs.writeFileSync(WELCOME_FILE, JSON.stringify(settings, null, 2), 'utf-8');
@@ -122,7 +138,7 @@ function saveWelcomeSettings(settings) {
 /**
  * Cria uma nova regra
  */
-function createRule(ruleData) {
+export function createRule(ruleData) {
   const rules = getRules();
   const newRule = {
     id: 'rule-' + Date.now(),
@@ -130,7 +146,7 @@ function createRule(ruleData) {
     description: ruleData.description || '',
     matchType: 'DATABASE',
     triggerValue: '',
-    guildId: ruleData.guildId || process.env.GUILD_ID || '',
+    serverId: ruleData.serverId || ruleData.guildId || process.env.SERVER_ID || '',
     roleId: ruleData.roleId || '',
     allowedChannelId: ruleData.allowedChannelId || '',
     allowedChannels: ruleData.allowedChannelId ? [ruleData.allowedChannelId] : [],
@@ -155,18 +171,18 @@ function createRule(ruleData) {
 /**
  * Atualiza uma regra existente por ID
  */
-function updateRule(id, updatedFields) {
+export function updateRule(id, updatedFields) {
   const rules = getRules();
   const index = rules.findIndex(r => r.id === id);
   if (index === -1) return null;
 
-  rules[index] = {
+  rules[index] = normalizeRule({
     ...rules[index],
     ...updatedFields,
     deleteDelaySeconds: typeof updatedFields.deleteDelaySeconds === 'number' ? updatedFields.deleteDelaySeconds : (rules[index].deleteDelaySeconds ?? 10),
     matchType: 'DATABASE',
     id
-  };
+  });
 
   saveRules(rules);
   return rules[index];
@@ -175,7 +191,7 @@ function updateRule(id, updatedFields) {
 /**
  * Deleta uma regra por ID
  */
-function deleteRule(id) {
+export function deleteRule(id) {
   let rules = getRules();
   const initialLength = rules.length;
   rules = rules.filter(r => r.id !== id);
@@ -189,7 +205,7 @@ function deleteRule(id) {
 /**
  * Avalia se uma entrada existe na base de dados de matrículas (matriculas.json)
  */
-function evaluateMatch(input) {
+export function evaluateMatch(input) {
   if (!input) return { success: false };
   const cleanInput = String(input).trim();
   return { success: databaseService.validarMatricula(cleanInput) };
@@ -198,12 +214,12 @@ function evaluateMatch(input) {
 /**
  * Avalia uma requisição de comando/mensagem contra todas as regras ativas
  */
-function evaluateRules(code, channelId = null, isDM = false, guildId = null, userRoleIds = []) {
+export function evaluateRules(code, channelId = null, isDM = false, serverId = null) {
   const rules = getRules().filter(r => r.active);
 
   for (const rule of rules) {
-    // 1. Validar Guild
-    if (!isDM && guildId && rule.guildId && rule.guildId !== guildId) {
+    // 1. Validar Servidor
+    if (!isDM && serverId && rule.serverId && rule.serverId !== serverId) {
       continue;
     }
 
@@ -220,7 +236,7 @@ function evaluateRules(code, channelId = null, isDM = false, guildId = null, use
           matchedRule: rule,
           success: false,
           isChannelInvalid: true,
-          message: '⚠️ Este comando só pode ser utilizado no canal de validação oficial autorizados nesta regra.'
+          message: '⚠️ Este comando só pode ser utilizado no canal de validação oficial autorizado nesta regra.'
         };
       }
     }
@@ -233,18 +249,18 @@ function evaluateRules(code, channelId = null, isDM = false, guildId = null, use
         matchedRule: rule,
         success: true,
         isChannelInvalid: false,
-        guildIdToAssign: rule.guildId || guildId || process.env.GUILD_ID,
+        serverIdToAssign: rule.serverId || serverId || process.env.SERVER_ID,
         roleIdToAssign: rule.roleId || process.env.ROLE_ID,
         message: rule.successMessage
       };
-    } else {
-      return {
-        matchedRule: rule,
-        success: false,
-        isChannelInvalid: false,
-        message: rule.errorMessage
-      };
     }
+
+    return {
+      matchedRule: rule,
+      success: false,
+      isChannelInvalid: false,
+      message: rule.errorMessage
+    };
   }
 
   return {
@@ -254,15 +270,3 @@ function evaluateRules(code, channelId = null, isDM = false, guildId = null, use
     message: '❌ Matrícula não encontrada.'
   };
 }
-
-module.exports = {
-  getRules,
-  saveRules,
-  getWelcomeSettings,
-  saveWelcomeSettings,
-  createRule,
-  updateRule,
-  deleteRule,
-  evaluateMatch,
-  evaluateRules
-};

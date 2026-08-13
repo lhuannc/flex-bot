@@ -1,10 +1,11 @@
-FROM node:20-alpine
+# stoat.js exige Node.js >= 22.15.0 rodando em modo ES Module
+FROM node:22-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install --production
+RUN npm install --omit=dev
 
 COPY . .
 

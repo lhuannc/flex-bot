@@ -9,16 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
     'channel-flow-tab': { title: 'Fluxo de Validação no Canal', sub: 'Configure as regras de validação em canais de texto através do assistente passo a passo.' },
     'dm-flow-tab': { title: 'Fluxo de Atendimento na DM & URA', sub: 'Configure o atendimento automático privado, comunicados e menus URA com wizard dedicado.' },
     'database-tab': { title: 'Base Oficial de Matrículas (matriculas.json)', sub: 'Gerencie as matrículas numéricas autorizadas no sistema corporativo.' },
-    'dm-tab': { title: 'Envio de Mensagem Direta Avulsa (DM)', sub: 'Dispare mensagens diretas no privado de usuários específicos do Discord.' }
+    'dm-tab': { title: 'Envio de Mensagem Direta Avulsa (DM)', sub: 'Dispare mensagens diretas no privado de usuários específicos do Stoat.' }
   };
 
   // State Management
   let currentChannelStep = 1;
   let currentDMStep = 1;
 
-  let guildsList = [];
-  let currentGuildRoles = [];
-  let currentGuildChannels = [];
+  let serversList = [];
+  let currentServerRoles = [];
+  let currentServerChannels = [];
   let rulesCache = [];
   let allMatriculasCache = [];
   let selectedMatriculasSet = new Set();
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchDMTriggers();
   fetchDMRules();
   fetchMatriculas();
-  fetchGuilds();
+  fetchServers();
 
   document.getElementById('btn-refresh').addEventListener('click', () => {
     fetchBotStatus();
@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchDMTriggers();
     fetchDMRules();
     fetchMatriculas();
-    fetchGuilds();
+    fetchServers();
     showToast('Dados do FlexBot e integrações atualizados!', 'success');
   });
 
@@ -198,95 +198,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const badge = document.getElementById('bot-status-badge');
       const userTag = document.getElementById('bot-username');
-      const guild = document.getElementById('bot-guild');
+      const serverLabel = document.getElementById('bot-server');
 
       if (data.online) {
         badge.className = 'status-indicator online';
         userTag.textContent = data.botUser;
-        guild.textContent = data.guildName;
+        serverLabel.textContent = data.serverName;
       } else {
         badge.className = 'status-indicator';
         userTag.textContent = 'Desconectado';
-        guild.textContent = 'Verifique seu .env / Token';
+        serverLabel.textContent = 'Verifique seu .env / Token';
       }
     } catch (err) {
       console.error('Erro ao buscar status:', err);
     }
   }
 
-  // --- 2. FETCH DISCORD GUILDS, ROLES & CHANNELS ---
-  async function fetchGuilds() {
+  // --- 2. FETCH STOAT SERVERS, ROLES & CHANNELS ---
+  async function fetchServers() {
     try {
-      const res = await fetch('/api/discord/guilds');
-      guildsList = await res.json();
-      populateGuildSelectOptions();
+      const res = await fetch('/api/stoat/servers');
+      serversList = await res.json();
+      populateServerSelectOptions();
 
-      if (guildsList.length > 0) {
-        const defaultGuildId = guildsList[0].id;
-        await loadGlobalRoles(defaultGuildId);
+      if (serversList.length > 0) {
+        const defaultServerId = serversList[0].id;
+        await loadGlobalRoles(defaultServerId);
       }
     } catch (err) {
-      console.error('Erro ao buscar servidores (guilds):', err);
+      console.error('Erro ao buscar servidores do Stoat:', err);
     }
   }
 
-  async function loadGlobalRoles(guildId) {
+  async function loadGlobalRoles(serverId) {
     try {
-      const rolesRes = await fetch(`/api/discord/guilds/${guildId}/roles`);
-      currentGuildRoles = await rolesRes.json();
+      const rolesRes = await fetch(`/api/stoat/servers/${serverId}/roles`);
+      currentServerRoles = await rolesRes.json();
       renderURARootTree();
     } catch (err) {
       console.error('Erro ao buscar cargos globais:', err);
     }
   }
 
-  function populateGuildSelectOptions() {
-    const channelGuildSelect = document.getElementById('channel-rule-guild-id');
-    const options = ['<option value="">Selecione o servidor do Discord...</option>'];
+  function populateServerSelectOptions() {
+    const channelServerSelect = document.getElementById('channel-rule-server-id');
+    const options = ['<option value="">Selecione o servidor do Stoat...</option>'];
 
-    if (guildsList && guildsList.length > 0) {
-      guildsList.forEach(g => {
-        options.push(`<option value="${g.id}">${escapeHtml(g.name)} (ID: ${g.id})</option>`);
+    if (serversList && serversList.length > 0) {
+      serversList.forEach(s => {
+        options.push(`<option value="${s.id}">${escapeHtml(s.name)} (ID: ${s.id})</option>`);
       });
     }
 
-    if (channelGuildSelect) channelGuildSelect.innerHTML = options.join('');
+    if (channelServerSelect) channelServerSelect.innerHTML = options.join('');
   }
 
-  const channelGuildSelectElem = document.getElementById('channel-rule-guild-id');
-  if (channelGuildSelectElem) {
-    channelGuildSelectElem.addEventListener('change', async () => {
-      const selectedGuildId = channelGuildSelectElem.value;
-      await loadGuildRolesAndChannels(selectedGuildId);
-      await loadGlobalRoles(selectedGuildId);
+  const channelServerSelectElem = document.getElementById('channel-rule-server-id');
+  if (channelServerSelectElem) {
+    channelServerSelectElem.addEventListener('change', async () => {
+      const selectedServerId = channelServerSelectElem.value;
+      await loadServerRolesAndChannels(selectedServerId);
+      await loadGlobalRoles(selectedServerId);
     });
   }
 
-  async function loadGuildRolesAndChannels(guildId, targetRoleId = '', targetChannelId = '') {
+  async function loadServerRolesAndChannels(serverId, targetRoleId = '', targetChannelId = '') {
     const roleSelect = document.getElementById('channel-rule-role-id');
     const channelSelect = document.getElementById('channel-rule-channel-id');
 
-    if (!guildId) {
+    if (!serverId) {
       if (roleSelect) roleSelect.innerHTML = '<option value="">Selecione um servidor primeiro...</option>';
       if (channelSelect) channelSelect.innerHTML = '<option value="">Selecione um servidor primeiro...</option>';
       return;
     }
 
-    if (roleSelect) roleSelect.innerHTML = '<option value="">Buscando cargos no Discord...</option>';
-    if (channelSelect) channelSelect.innerHTML = '<option value="">Buscando canais no Discord...</option>';
+    if (roleSelect) roleSelect.innerHTML = '<option value="">Buscando cargos no Stoat...</option>';
+    if (channelSelect) channelSelect.innerHTML = '<option value="">Buscando canais no Stoat...</option>';
 
     try {
       const [rolesRes, channelsRes] = await Promise.all([
-        fetch(`/api/discord/guilds/${guildId}/roles`),
-        fetch(`/api/discord/guilds/${guildId}/channels`)
+        fetch(`/api/stoat/servers/${serverId}/roles`),
+        fetch(`/api/stoat/servers/${serverId}/channels`)
       ]);
 
-      currentGuildRoles = await rolesRes.json();
-      currentGuildChannels = await channelsRes.json();
+      currentServerRoles = await rolesRes.json();
+      currentServerChannels = await channelsRes.json();
 
       if (roleSelect) {
         roleSelect.innerHTML = '<option value="">Selecione o cargo a atribuir...</option>';
-        currentGuildRoles.forEach(r => {
+        currentServerRoles.forEach(r => {
           const selected = r.id === targetRoleId ? 'selected' : '';
           roleSelect.innerHTML += `<option value="${r.id}" ${selected}>${escapeHtml(r.name)} (ID: ${r.id})</option>`;
         });
@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (channelSelect) {
         channelSelect.innerHTML = '<option value="">Selecione o canal exclusivo...</option>';
-        currentGuildChannels.forEach(c => {
+        currentServerChannels.forEach(c => {
           const selected = c.id === targetChannelId ? 'selected' : '';
           channelSelect.innerHTML += `<option value="${c.id}" ${selected}>#${escapeHtml(c.name)} (ID: ${c.id})</option>`;
         });
@@ -325,9 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     container.innerHTML = rules.map(rule => {
-      const guildName = guildsList.find(g => g.id === rule.guildId)?.name || (rule.guildId ? `Servidor ID: ${rule.guildId}` : 'Servidor Padrão');
-      const roleBadge = rule.roleId ? `Role ID: ${rule.roleId}` : 'Cargo Padrão';
-      const channelBadge = rule.allowedChannelId ? `Canal: #${currentGuildChannels.find(c => c.id === rule.allowedChannelId)?.name || rule.allowedChannelId}` : 'Canal Não Definido';
+      const serverName = serversList.find(s => s.id === rule.serverId)?.name || (rule.serverId ? `Servidor ID: ${rule.serverId}` : 'Servidor Padrão');
+      const roleBadge = rule.roleId ? `Cargo ID: ${rule.roleId}` : 'Cargo Padrão';
+      const channelBadge = rule.allowedChannelId ? `Canal: #${currentServerChannels.find(c => c.id === rule.allowedChannelId)?.name || rule.allowedChannelId}` : 'Canal Não Definido';
       const delayBadge = typeof rule.deleteDelaySeconds === 'number'
         ? (rule.deleteDelaySeconds === 0 ? 'Mensagem Permanente' : `Auto-Deletar: ${rule.deleteDelaySeconds}s`)
         : 'Auto-Deletar: 10s';
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <p>${escapeHtml(rule.description || 'Sem descrição')}</p>
             <div class="rule-tags">
               <span class="badge badge-cyan"><i class="fa-solid fa-table"></i> Leitura: matriculas.json</span>
-              <span class="badge badge-purple"><i class="fa-solid fa-server"></i> ${escapeHtml(guildName)}</span>
+              <span class="badge badge-purple"><i class="fa-solid fa-server"></i> ${escapeHtml(serverName)}</span>
               <span class="badge badge-purple"><i class="fa-solid fa-user-shield"></i> ${escapeHtml(roleBadge)}</span>
               <span class="badge"><i class="fa-solid fa-hashtag"></i> ${escapeHtml(channelBadge)}</span>
               <span class="badge badge-warning"><i class="fa-solid fa-clock"></i> ${escapeHtml(delayBadge)}</span>
@@ -375,10 +375,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('channel-rule-id').value = rule.id;
     document.getElementById('channel-rule-name').value = rule.name;
     document.getElementById('channel-rule-description').value = rule.description || '';
-    document.getElementById('channel-rule-guild-id').value = rule.guildId || '';
+    document.getElementById('channel-rule-server-id').value = rule.serverId || '';
 
-    if (rule.guildId) {
-      await loadGuildRolesAndChannels(rule.guildId, rule.roleId, rule.allowedChannelId);
+    if (rule.serverId) {
+      await loadServerRolesAndChannels(rule.serverId, rule.roleId, rule.allowedChannelId);
     }
 
     document.getElementById('channel-rule-delete-delay').value = typeof rule.deleteDelaySeconds === 'number' ? rule.deleteDelaySeconds : 10;
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         description: document.getElementById('channel-rule-description').value,
         matchType: 'DATABASE',
         triggerValue: '',
-        guildId: document.getElementById('channel-rule-guild-id').value,
+        serverId: document.getElementById('channel-rule-server-id').value,
         roleId: document.getElementById('channel-rule-role-id').value,
         allowedChannelId: document.getElementById('channel-rule-channel-id').value,
         deleteDelaySeconds: parseInt(document.getElementById('channel-rule-delete-delay').value, 10) || 0,
@@ -477,8 +477,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function generateRoleSelectHTML(selectedRoleId, onchangeAttr) {
     let optionsHTML = '<option value="">Selecione o cargo no servidor...</option>';
-    if (currentGuildRoles && currentGuildRoles.length > 0) {
-      currentGuildRoles.forEach(r => {
+    if (currentServerRoles && currentServerRoles.length > 0) {
+      currentServerRoles.forEach(r => {
         const sel = r.id === selectedRoleId ? 'selected' : '';
         optionsHTML += `<option value="${r.id}" ${sel}>${escapeHtml(r.name)} (ID: ${r.id})</option>`;
       });
@@ -584,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="checkbox" ${cons.assignRole ? 'checked' : ''} onchange="toggleRootCons(${rIdx}, 'assignRole', this.checked)">
                 <span class="slider round"></span>
               </label>
-              <span>🏷️ Atribuir Cargo Direto no Discord (Role)</span>
+              <span>🏷️ Atribuir Cargo Direto no Stoat (Role)</span>
             </div>
             ${cons.assignRole ? `
               <div class="form-group" style="margin-left: 56px; margin-bottom: 12px;">
@@ -677,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <input type="text" placeholder="Mensagem solicitando a matrícula" value="${escapeHtml(sCons.promptMessage || sub.promptMessage || '')}" onchange="updateSubCons(${rIdx}, ${sIdx}, 'promptMessage', this.value)">
           
-          <label style="font-size: 0.82rem; margin-top: 6px;">Selecione o Cargo a Atribuir no Discord:</label>
+          <label style="font-size: 0.82rem; margin-top: 6px;">Selecione o Cargo a Atribuir no Stoat:</label>
           ${generateRoleSelectHTML(sCons.roleId || sub.roleId, `onchange="updateSubCons(${rIdx}, ${sIdx}, 'roleId', this.value)"`)}
         </div>
       `;

@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-const TRIGGERS_FILE = path.join(__dirname, '../data/dm_triggers.json');
+const TRIGGERS_FILE = path.join(import.meta.dirname, '../data/dm_triggers.json');
 
 /**
  * Garante a existência do arquivo de gatilhos de DM
@@ -38,7 +38,7 @@ function ensureFileExists() {
 /**
  * Obtém as configurações dos gatilhos de DM
  */
-function getDMTriggers() {
+export function getDMTriggers() {
   try {
     ensureFileExists();
     const data = fs.readFileSync(TRIGGERS_FILE, 'utf-8');
@@ -52,7 +52,7 @@ function getDMTriggers() {
 /**
  * Salva as configurações dos gatilhos de DM
  */
-function saveDMTriggers(triggers) {
+export function saveDMTriggers(triggers) {
   try {
     ensureFileExists();
     fs.writeFileSync(TRIGGERS_FILE, JSON.stringify(triggers, null, 2), 'utf-8');
@@ -64,7 +64,7 @@ function saveDMTriggers(triggers) {
 /**
  * Verifica se a mensagem na DM combina com alguma palavra-chave de saudação
  */
-function isKeywordMatch(content) {
+export function isKeywordMatch(content) {
   if (!content) return false;
   const config = getDMTriggers();
   if (!config.keywordGreeting || !config.keywordGreeting.enabled) return false;
@@ -74,9 +74,3 @@ function isKeywordMatch(content) {
 
   return keywords.some(kw => text === kw.toLowerCase() || text.startsWith(kw.toLowerCase() + ' '));
 }
-
-module.exports = {
-  getDMTriggers,
-  saveDMTriggers,
-  isKeywordMatch
-};

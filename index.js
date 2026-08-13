@@ -1,60 +1,76 @@
-require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
-const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
-const { createWebServer } = require('./web/server');
-const discordService = require('./services/discordService');
+import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { Client } from 'stoat.js';
+import { createWebServer } from './web/server.js';
+import * as stoatService from './services/stoatService.js';
 
-// 1. Configuração dos Intents do Discord.js v14
+// 1. Criação do cliente do Stoat
+// O baseURL permite apontar tanto para a instância oficial (https://stoat.chat/api)
+// quanto para uma instância self-hosted do Stoat.
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent, // Necessário para ler o texto digitado nos canais autorizados
-    GatewayIntentBits.DirectMessages
-  ],
-  partials: [
-    Partials.Channel, // Necessário para escutar DMs em canais não cacheados
-    Partials.Message
-  ]
+  baseURL: process.env.STOAT_API_URL || 'https://stoat.chat/api'
 });
 
-// Registra a referência do cliente no serviço
-discordService.setClient(client);
+// Registra a referência do cliente no serviço de integração
+stoatService.setClient(client);
 
 // 2. Carregamento dinâmico dos Comandos (Command Handler)
-client.commands = new Collection();
-const commandsPath = path.join(__dirname, 'commands');
+// O Stoat não possui Slash Commands, então os comandos são de texto com prefixo.
+client.commands = new Map();
+
+const commandsPath = path.join(import.meta.dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
   for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    if ('data' in command && 'execute' in command) {
-      client.commands.set(command.data.name, command);
-      console.log(`[Command Handler] Comando carregado: /${command.data.name}`);
+    const command = await import(pathToFileURL(path.join(commandsPath, file)).href);
+    if (command.name && command.execute) {
+      client.commands.set(command.name.toLowerCase(), command);
+      const prefix = process.env.COMMAND_PREFIX || '!';
+      console.log(`[Command Handler] Comando carregado: ${prefix}${command.name}`);
+    } else {
+      console.warn(`[Command Handler] O arquivo ${file} não exporta "name" e "execute".`);
     }
   }
 }
 
 // 3. Carregamento dinâmico dos Eventos (Event Handler)
-const eventsPath = path.join(__dirname, 'events');
+// O cliente é injetado como último argumento de todo handler.
+const eventsPath = path.join(import.meta.dirname, 'events');
 if (fs.existsSync(eventsPath)) {
   const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
   for (const file of eventFiles) {
-    const filePath = path.join(eventsPath, file);
-    const event = require(filePath);
+    const event = await import(pathToFileURL(path.join(eventsPath, file)).href);
+    if (!event.name || !event.execute) {
+      console.warn(`[Event Handler] O arquivo ${file} não exporta "name" e "execute".`);
+      continue;
+    }
+
+    const handler = (...args) => {
+      Promise.resolve(event.execute(...args, client)).catch(err => {
+        console.error(`[Event Handler] Erro no evento "${event.name}":`, err);
+      });
+    };
+
     if (event.once) {
-      client.once(event.name, (...args) => event.execute(...args));
+      client.once(event.name, handler);
     } else {
-      client.on(event.name, (...args) => event.execute(...args));
+      client.on(event.name, handler);
     }
     console.log(`[Event Handler] Evento registrado: ${event.name}`);
   }
 }
 
-// 4. Inicialização do Servidor Web (Dashboard Express)
+// 4. Eventos de ciclo de vida da conexão com o Stoat
+client.on('connecting', () => console.log('[Stoat] Conectando ao WebSocket de eventos...'));
+client.on('disconnected', () => {
+  stoatService.setReady(false);
+  console.warn('[Stoat] Conexão perdida. O stoat.js tentará reconectar automaticamente.');
+});
+client.on('error', (error) => console.error('[Stoat] Erro no cliente:', error?.message || error));
+
+// 5. Inicialização do Servidor Web (Dashboard Express)
 const PORT = process.env.PORT || 3000;
 const app = createWebServer();
 
@@ -64,11 +80,11 @@ app.listen(PORT, () => {
   console.log(`==================================================\n`);
 });
 
-// 5. Login do Bot no Discord (Se o Token estiver configurado)
-if (process.env.DISCORD_TOKEN && process.env.DISCORD_TOKEN !== 'seu_token_aqui') {
-  client.login(process.env.DISCORD_TOKEN).catch(err => {
-    console.error('❌ Erro ao conectar o bot no Discord:', err.message);
+// 6. Login do Bot no Stoat (se o Token estiver configurado)
+if (process.env.STOAT_TOKEN && process.env.STOAT_TOKEN !== 'seu_token_aqui') {
+  client.loginBot(process.env.STOAT_TOKEN).catch(err => {
+    console.error('❌ Erro ao conectar o bot no Stoat:', err.message);
   });
 } else {
-  console.warn('⚠️ DISCORD_TOKEN não foi configurado no arquivo .env. O servidor web continuará funcionando para testes de interface.');
+  console.warn('⚠️ STOAT_TOKEN não foi configurado no arquivo .env. O servidor web continuará funcionando para testes de interface.');
 }

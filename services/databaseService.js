@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-const MATRICULAS_FILE = path.join(__dirname, '../data/matriculas.json');
+const MATRICULAS_FILE = path.join(import.meta.dirname, '../data/matriculas.json');
 
 /**
  * Garantir que o diretório e arquivo de matrículas existam
@@ -24,7 +24,7 @@ function ensureFileExists() {
  * Retorna todas as matrículas cadastradas
  * @returns {Array<string>}
  */
-function getMatriculas() {
+export function getMatriculas() {
   try {
     ensureFileExists();
     const data = fs.readFileSync(MATRICULAS_FILE, 'utf-8');
@@ -37,10 +37,10 @@ function getMatriculas() {
 
 /**
  * Verifica se a matrícula existe na base de dados
- * @param {string} matricula 
+ * @param {string} matricula
  * @returns {boolean}
  */
-function validarMatricula(matricula) {
+export function validarMatricula(matricula) {
   if (!matricula) return false;
   const lista = getMatriculas();
   const normalizada = String(matricula).trim();
@@ -49,10 +49,10 @@ function validarMatricula(matricula) {
 
 /**
  * Adiciona uma nova matrícula na base de dados
- * @param {string} matricula 
+ * @param {string} matricula
  * @returns {boolean}
  */
-function adicionarMatricula(matricula) {
+export function adicionarMatricula(matricula) {
   const normalizada = String(matricula).trim();
   if (!normalizada) return false;
 
@@ -71,7 +71,7 @@ function adicionarMatricula(matricula) {
  * @param {Array<string>|string} rawData - Array de strings ou texto CSV/separado por vírgula ou quebra de linha
  * @returns {{ addedCount: number, totalMatriculas: number, matriculas: Array<string> }}
  */
-function adicionarMatriculasEmMassa(rawData) {
+export function adicionarMatriculasEmMassa(rawData) {
   let items = [];
 
   if (Array.isArray(rawData)) {
@@ -85,7 +85,7 @@ function adicionarMatriculasEmMassa(rawData) {
   const setAtual = new Set(listaAtual);
   let addedCount = 0;
 
-  for (let item of items) {
+  for (const item of items) {
     const limpo = String(item).replace(/["']/g, '').trim();
     if (limpo && !setAtual.has(limpo)) {
       setAtual.add(limpo);
@@ -105,10 +105,10 @@ function adicionarMatriculasEmMassa(rawData) {
 
 /**
  * Remove uma matrícula da base de dados
- * @param {string} matricula 
+ * @param {string} matricula
  * @returns {boolean}
  */
-function removerMatricula(matricula) {
+export function removerMatricula(matricula) {
   const normalizada = String(matricula).trim();
   let lista = getMatriculas();
   const totalOriginal = lista.length;
@@ -125,10 +125,10 @@ function removerMatricula(matricula) {
 
 /**
  * Remove um lote de matrículas em massa
- * @param {Array<string>} itemsToRemove 
+ * @param {Array<string>} itemsToRemove
  * @returns {{ removedCount: number, totalMatriculas: number, matriculas: Array<string> }}
  */
-function removerMatriculasEmMassa(itemsToRemove) {
+export function removerMatriculasEmMassa(itemsToRemove) {
   if (!Array.isArray(itemsToRemove) || itemsToRemove.length === 0) {
     const atual = getMatriculas();
     return { removedCount: 0, totalMatriculas: atual.length, matriculas: atual };
@@ -152,9 +152,9 @@ function removerMatriculasEmMassa(itemsToRemove) {
 
 /**
  * Salva a lista inteira de matrículas no JSON
- * @param {Array<string>} lista 
+ * @param {Array<string>} lista
  */
-function saveMatriculas(lista) {
+export function saveMatriculas(lista) {
   try {
     ensureFileExists();
     fs.writeFileSync(MATRICULAS_FILE, JSON.stringify(lista, null, 2), 'utf-8');
@@ -162,13 +162,3 @@ function saveMatriculas(lista) {
     console.error('[databaseService] Erro ao salvar matrículas no disco:', err);
   }
 }
-
-module.exports = {
-  getMatriculas,
-  validarMatricula,
-  adicionarMatricula,
-  adicionarMatriculasEmMassa,
-  removerMatricula,
-  removerMatriculasEmMassa,
-  saveMatriculas
-};

@@ -1,14 +1,31 @@
-const { Events } = require('discord.js');
-const discordService = require('../services/discordService');
+import * as stoatService from '../services/stoatService.js';
 
-module.exports = {
-  name: Events.ClientReady,
-  once: true,
-  execute(client) {
-    console.log(`[Event Ready] Bot conectado com sucesso como: ${client.user.tag}`);
-    discordService.setClient(client);
+export const name = 'ready';
+export const once = true;
 
-    // Define atividade do bot
-    client.user.setActivity('Validação de Matrículas | /matricula', { type: 0 });
+/**
+ * O evento `ready` do stoat.js não recebe argumentos; o carregador de eventos
+ * injeta o cliente como último parâmetro.
+ * @param {import('stoat.js').Client} client
+ */
+export async function execute(client) {
+  stoatService.setClient(client);
+  stoatService.setReady(true);
+
+  const servers = client.servers.toList();
+  console.log(`[Event Ready] Bot conectado com sucesso no Stoat como: ${client.user?.username}`);
+  console.log(`[Event Ready] Servidores conectados: ${servers.length ? servers.map(s => s.name).join(', ') : 'nenhum'}`);
+
+  // Define o status/presença do bot no Stoat
+  const prefix = process.env.COMMAND_PREFIX || '!';
+  try {
+    await client.user?.edit({
+      status: {
+        text: `Validação de Matrículas | ${prefix}matricula`,
+        presence: 'Online'
+      }
+    });
+  } catch (error) {
+    console.warn('[Event Ready] Não foi possível definir o status do bot:', error.message);
   }
-};
+}

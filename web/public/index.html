@@ -48,7 +48,7 @@
         <div class="status-indicator online" id="bot-status-badge"></div>
         <div class="bot-status-info">
           <span class="status-title" id="bot-username">Conectando...</span>
-          <span class="status-sub" id="bot-guild">Buscando servidor...</span>
+          <span class="status-sub" id="bot-server">Buscando servidor...</span>
         </div>
       </div>
     </aside>
@@ -85,7 +85,7 @@
             <div class="step-badge">2</div>
             <div class="step-info">
               <span class="step-title">Cargo & Atribuição</span>
-              <span class="step-sub">Permissões no Discord</span>
+              <span class="step-sub">Permissões no Stoat</span>
             </div>
           </div>
           <div class="step-connector"></div>
@@ -108,7 +108,7 @@
               <div class="card-header">
                 <div>
                   <h3><i class="fa-solid fa-building" style="color: var(--color-gradient-blue-mid);"></i> Passo 1: Servidor e Canal Específico Autorizado<span class="triangulo-ponto"></span></h3>
-                  <p>Defina o nome da regra, selecione o servidor do Discord e escolha o canal exclusivo onde os usuários digitarão a matrícula.</p>
+                  <p>Defina o nome da regra, selecione o servidor do Stoat e escolha o canal exclusivo onde os usuários digitarão a matrícula.</p>
                 </div>
               </div>
               <div class="card-body">
@@ -126,8 +126,8 @@
 
                   <div class="form-row">
                     <div class="form-group">
-                      <label for="channel-rule-guild-id">Servidor do Discord (Guild) *</label>
-                      <select id="channel-rule-guild-id" required>
+                      <label for="channel-rule-server-id">Servidor do Stoat *</label>
+                      <select id="channel-rule-server-id" required>
                         <option value="">Carregando servidores...</option>
                       </select>
                     </div>
@@ -157,7 +157,7 @@
             <div class="content-card">
               <div class="card-header">
                 <div>
-                  <h3><i class="fa-solid fa-user-shield" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Cargo a Atribuir no Discord<span class="triangulo-ponto"></span></h3>
+                  <h3><i class="fa-solid fa-user-shield" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Cargo a Atribuir no Stoat<span class="triangulo-ponto"></span></h3>
                   <p>Selecione a Role (Cargo) que o FlexBot atribuirá ao usuário quando a matrícula for validada com sucesso.</p>
                 </div>
               </div>
@@ -168,7 +168,7 @@
                     <select id="channel-rule-role-id" required>
                       <option value="">Selecione o servidor no Passo 1 primeiro...</option>
                     </select>
-                    <small>Este cargo concede o acesso do servidor do Discord.</small>
+                    <small>Este cargo concede o acesso ao servidor do Stoat.</small>
                   </div>
                 </div>
               </div>
@@ -513,14 +513,14 @@
           <div class="card-header">
             <div>
               <h3><i class="fa-solid fa-paper-plane"></i> Enviar Mensagem Direta Avulsa (DM) <span class="triangulo-ponto"></span></h3>
-              <p>Envie mensagens personalizadas diretamente para a DM de um usuário específico do Discord.</p>
+              <p>Envie mensagens personalizadas diretamente para a DM de um usuário específico do Stoat.</p>
             </div>
           </div>
           <div class="card-body">
             <form id="form-send-dm" class="form-grid">
               <div class="form-group">
-                <label for="dm-user-id">ID do Usuário Discord *</label>
-                <input type="text" id="dm-user-id" placeholder="Ex: 123456789012345678" required>
+                <label for="dm-user-id">ID do Usuário no Stoat *</label>
+                <input type="text" id="dm-user-id" placeholder="Ex: 01HB2C3D4E5F6G7H8J9K0LMNPQ" required>
               </div>
 
               <div class="form-group">

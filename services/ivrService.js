@@ -1,9 +1,35 @@
-const dmRuleService = require('./dmRuleService');
-const ruleService = require('./ruleService');
-const discordService = require('./discordService');
+import * as dmRuleService from './dmRuleService.js';
+import * as ruleService from './ruleService.js';
+import * as stoatService from './stoatService.js';
 
 // Estado em memória das sessões ativas dos usuários na URA (userId -> sessionData)
 const userSessions = new Map();
+
+/**
+ * Envia uma resposta encadeada à mensagem recebida no Stoat
+ * @param {import('stoat.js').Message} message
+ * @param {string} content
+ */
+async function replyTo(message, content) {
+  try {
+    await message.reply(content);
+  } catch (error) {
+    console.warn('[IVR Engine] Falha ao responder mensagem no Stoat:', error.message);
+  }
+}
+
+/**
+ * Envia uma mensagem avulsa no mesmo canal da mensagem recebida
+ * @param {import('stoat.js').Message} message
+ * @param {string} content
+ */
+async function sendInChannel(message, content) {
+  try {
+    await message.channel?.sendMessage(content);
+  } catch (error) {
+    console.warn('[IVR Engine] Falha ao enviar mensagem no canal do Stoat:', error.message);
+  }
+}
 
 /**
  * Retorna a sessão ativa de um usuário ou cria uma nova
@@ -24,7 +50,7 @@ function getSession(userId) {
 /**
  * Limpa a sessão de um usuário
  */
-function clearSession(userId) {
+export function clearSession(userId) {
   userSessions.delete(userId);
 }
 
@@ -44,18 +70,19 @@ function formatMenuText(title, options) {
 /**
  * Formata o modelo da mensagem substituindo variáveis {user} e {server}
  */
-function formatTemplate(template, userId, guildName = '') {
+function formatTemplate(template, userId, serverName = '') {
   if (!template) return '';
   return template
     .replace(/\{user\}/g, `<@${userId}>`)
-    .replace(/\{server\}/g, guildName);
+    .replace(/\{server\}/g, serverName);
 }
 
 /**
  * Processa mensagens recebidas via DM dentro do fluxo de URA com Consequências Flexíveis
+ * @param {import('stoat.js').Message} message
  */
-async function processIVRMessage(message) {
-  const userId = message.author.id;
+export async function processIVRMessage(message) {
+  const userId = message.authorId;
   const content = message.content.trim();
   const dmRules = dmRuleService.getDMRules();
 
@@ -83,22 +110,22 @@ async function processIVRMessage(message) {
         if (activeRule) roleId = activeRule.roleId;
       }
 
-      const targetGuildId = cons.guildId || pending.guildId || process.env.GUILD_ID;
+      const targetServerId = cons.serverId || pending.serverId || process.env.SERVER_ID;
 
       if (roleId) {
-        const roleResult = await discordService.assignRoleToUser(userId, roleId, targetGuildId);
+        const roleResult = await stoatService.assignRoleToUser(userId, roleId, targetServerId);
         if (roleResult.success) {
-          await message.reply(`✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada com sucesso e seu cargo foi atribuído.`);
+          await replyTo(message, `✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada com sucesso e seu cargo foi atribuído.`);
         } else {
-          await message.reply(`✅ **Matrícula Validada!** Ocorreu um pequeno aviso ao aplicar o cargo no servidor (${roleResult.message}).`);
+          await replyTo(message, `✅ **Matrícula Validada!** Ocorreu um pequeno aviso ao aplicar o cargo no servidor (${roleResult.message}).`);
         }
       } else {
-        await message.reply(`✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada.`);
+        await replyTo(message, `✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada.`);
       }
 
       // Se houver mensagem de sucesso customizada na opção
       if (cons.successMessage) {
-        await message.channel.send(formatTemplate(cons.successMessage, userId));
+        await sendInChannel(message, formatTemplate(cons.successMessage, userId));
       }
 
       // Se houver submenu subsequente
@@ -107,13 +134,13 @@ async function processIVRMessage(message) {
         session.currentMenuOptions = cons.suboptions;
         session.submenuTitle = cons.submenuPrompt || `📌 **${pending.label}**`;
         session.pendingOption = null;
-        await message.reply(formatMenuText(session.submenuTitle, cons.suboptions));
+        await replyTo(message, formatMenuText(session.submenuTitle, cons.suboptions));
         return true;
       }
 
       clearSession(userId);
     } else {
-      await message.reply(`❌ **Matrícula "${content}" não encontrada na base.** Verifique os 8 números digitados e tente novamente:`);
+      await replyTo(message, `❌ **Matrícula "${content}" não encontrada na base.** Verifique os 8 números digitados e tente novamente:`);
     }
     return true;
   }
@@ -126,10 +153,10 @@ async function processIVRMessage(message) {
 
     if (matchedSub) {
       return await executeOptionConsequences(message, session, matchedSub);
-    } else {
-      await message.reply(`⚠️ **Opção inválida.** Por favor, digite o número de uma das opções do menu:\n\n${formatMenuText(session.submenuTitle || '📌 Selecione uma opção:', session.currentMenuOptions)}`);
-      return true;
     }
+
+    await replyTo(message, `⚠️ **Opção inválida.** Por favor, digite o número de uma das opções do menu:\n\n${formatMenuText(session.submenuTitle || '📌 Selecione uma opção:', session.currentMenuOptions)}`);
+    return true;
   }
 
   // ---------------------------------------------------------------------------
@@ -141,13 +168,13 @@ async function processIVRMessage(message) {
     return await executeOptionConsequences(message, session, rootOption);
   }
 
-  // Se o comando/texto for uma palavra-chave ("oi", "menu", "ajuda"), exibe o menu principal da URA
+  // Se o texto for uma palavra-chave ("oi", "menu", "ajuda"), exibe o menu principal da URA
   const lowerContent = content.toLowerCase();
   if (['oi', 'olá', 'ola', 'ajuda', 'menu', 'iniciar', 'início'].includes(lowerContent)) {
     session.step = 'ROOT';
     session.pendingOption = null;
     const greetingTitle = dmRules.greeting?.message || '👋 **Seja bem-vindo(a) ao atendimento automatizado!**';
-    await message.reply(formatMenuText(greetingTitle, dmRules.ivrTree));
+    await replyTo(message, formatMenuText(greetingTitle, dmRules.ivrTree));
     return true;
   }
 
@@ -158,8 +185,8 @@ async function processIVRMessage(message) {
  * Executa as Consequências Configuradas de uma Opção (Pode combinar: Mensagem + Cargo + Matrícula + Submenu)
  */
 async function executeOptionConsequences(message, session, option) {
-  const userId = message.author.id;
-  
+  const userId = message.authorId;
+
   // Suporta formato de consequências combináveis ou legado
   const cons = option.consequences || {
     sendMessage: option.actionType === 'MESSAGE_ONLY' || !!option.responseMessage,
@@ -175,16 +202,15 @@ async function executeOptionConsequences(message, session, option) {
 
   // 1. Consequência: ENVIAR MENSAGEM / RESPOSTA
   if (cons.sendMessage && cons.responseMessage) {
-    await message.reply(formatTemplate(cons.responseMessage, userId));
+    await replyTo(message, formatTemplate(cons.responseMessage, userId));
   }
 
   // 2. Consequência: ATRIBUIR CARGO DIRETO (Sem precisar de validação prévia de matrícula se desativado)
   if (cons.assignRole && cons.roleId && !cons.requestMatricula) {
-    const roleId = cons.roleId;
-    const targetGuildId = cons.guildId || process.env.GUILD_ID;
-    const roleResult = await discordService.assignRoleToUser(userId, roleId, targetGuildId);
+    const targetServerId = cons.serverId || process.env.SERVER_ID;
+    const roleResult = await stoatService.assignRoleToUser(userId, cons.roleId, targetServerId);
     if (roleResult.success) {
-      await message.channel.send(`🎉 **Cargo concedido!** O cargo foi atribuído ao seu usuário no servidor.`);
+      await sendInChannel(message, `🎉 **Cargo concedido!** O cargo foi atribuído ao seu usuário no servidor.`);
     }
   }
 
@@ -192,7 +218,7 @@ async function executeOptionConsequences(message, session, option) {
   if (cons.requestMatricula) {
     session.step = 'AWAITING_MATRICULA';
     session.pendingOption = option;
-    await message.reply(cons.promptMessage || option.promptMessage || 'Por favor, digite seu número de matrícula oficial:');
+    await replyTo(message, cons.promptMessage || option.promptMessage || 'Por favor, digite seu número de matrícula oficial:');
     return true;
   }
 
@@ -203,7 +229,7 @@ async function executeOptionConsequences(message, session, option) {
     session.submenuTitle = cons.submenuPrompt || option.submenuPrompt || `📌 **${option.label}**`;
     session.pendingOption = null;
 
-    await message.reply(formatMenuText(session.submenuTitle, cons.suboptions));
+    await replyTo(message, formatMenuText(session.submenuTitle, cons.suboptions));
     return true;
   }
 
@@ -217,8 +243,9 @@ async function executeOptionConsequences(message, session, option) {
 
 /**
  * Envia o Menu Principal de URA para a DM de um usuário
+ * @param {import('stoat.js').User} user
  */
-async function sendRootIVRMenu(user, titleOverride = '') {
+export async function sendRootIVRMenu(user, titleOverride = '') {
   const dmRules = dmRuleService.getDMRules();
   if (!dmRules.ivrTree || dmRules.ivrTree.length === 0) return false;
 
@@ -229,17 +256,9 @@ async function sendRootIVRMenu(user, titleOverride = '') {
   const title = titleOverride || dmRules.greeting?.message || '👋 **Seja bem-vindo(a)!**';
   const menuText = formatMenuText(title, dmRules.ivrTree);
 
-  try {
-    await user.send(menuText);
-    return true;
-  } catch (err) {
-    console.warn(`[IVR Service] Não foi possível enviar menu URA para ${user.tag} (DMs fechadas).`);
-    return false;
+  const delivered = await stoatService.sendDMToStoatUser(user, menuText);
+  if (!delivered) {
+    console.warn(`[IVR Service] Não foi possível enviar o menu de URA para ${user.username} (DMs bloqueadas).`);
   }
+  return delivered;
 }
-
-module.exports = {
-  processIVRMessage,
-  sendRootIVRMenu,
-  clearSession
-};

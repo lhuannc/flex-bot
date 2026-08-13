@@ -1,30 +1,34 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const databaseService = require('../services/databaseService');
-const ruleService = require('../services/ruleService');
+import * as databaseService from '../services/databaseService.js';
+import * as ruleService from '../services/ruleService.js';
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('status')
-    .setDescription('Exibe o status do FlexBot e estatísticas de validação.'),
+/**
+ * Uso: !status
+ */
+export const name = 'status';
+export const description = 'Exibe o status do FlexBot e estatísticas de validação.';
+export const usage = 'status';
 
-  async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+export async function execute({ message }) {
+  const totalMatriculas = databaseService.getMatriculas().length;
+  const rules = ruleService.getRules();
+  const totalRegras = rules.length;
+  const regrasAtivas = rules.filter(r => r.active).length;
 
-    const totalMatriculas = databaseService.getMatriculas().length;
-    const totalRegras = ruleService.getRules().length;
-    const regrasAtivas = ruleService.getRules().filter(r => r.active).length;
+  const descricao = [
+    '**🟢 Status:** Online e Operacional',
+    `**📋 Matrículas Autorizadas:** ${totalMatriculas}`,
+    `**⚙️ Regras de Canais:** ${regrasAtivas} / ${totalRegras}`,
+    `**🌐 Dashboard Web:** http://localhost:${process.env.PORT || 3000}`
+  ].join('\n');
 
-    const embed = new EmbedBuilder()
-      .setTitle('🤖 Status do FlexBot · Prefeitura do Rio 2025')
-      .setColor('#13335a')
-      .addFields(
-        { name: '🟢 Status', value: 'Online e Operacional', inline: true },
-        { name: '📋 Matrículas Autorizadas', value: `${totalMatriculas}`, inline: true },
-        { name: '⚙️ Regras de Canais', value: `${regrasAtivas} / ${totalRegras}`, inline: true },
-        { name: '🌐 Dashboard Web', value: `http://localhost:${process.env.PORT || 3000}`, inline: false }
-      )
-      .setTimestamp();
-
-    await interaction.editReply({ embeds: [embed] });
-  }
-};
+  // Embeds do Stoat aceitam apenas title/description/colour/url/icon_url/media
+  await message.reply({
+    embeds: [
+      {
+        title: '🤖 Status do FlexBot · Prefeitura do Rio 2025',
+        description: descricao,
+        colour: '#13335a'
+      }
+    ]
+  });
+}

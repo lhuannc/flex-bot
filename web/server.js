@@ -1,36 +1,36 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-const databaseService = require('../services/databaseService');
-const ruleService = require('../services/ruleService');
-const discordService = require('../services/discordService');
-const dmTriggerService = require('../services/dmTriggerService');
-const dmRuleService = require('../services/dmRuleService');
+import express from 'express';
+import path from 'node:path';
+import cors from 'cors';
+import * as databaseService from '../services/databaseService.js';
+import * as ruleService from '../services/ruleService.js';
+import * as stoatService from '../services/stoatService.js';
+import * as dmTriggerService from '../services/dmTriggerService.js';
+import * as dmRuleService from '../services/dmRuleService.js';
 
-function createWebServer() {
+export function createWebServer() {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  app.use(express.static(path.join(__dirname, 'public')));
+  app.use(express.static(path.join(import.meta.dirname, 'public')));
 
   // --- ROTAS DA API ---
 
   // 1. Status do Bot
   app.get('/api/status', async (req, res) => {
-    const client = discordService.getClient();
-    const isOnline = client && client.readyAt ? true : false;
-    const botUser = isOnline ? client.user.tag : 'Desconectado';
+    const client = stoatService.getClient();
+    const isOnline = stoatService.isReady();
+    const botUser = isOnline ? client.user.username : 'Desconectado';
 
-    const guilds = await discordService.getGuilds();
-    const guildName = guilds.length > 0 
-      ? (guilds.length === 1 ? guilds[0].name : `${guilds.length} Servidores Conectados`)
+    const servers = await stoatService.getServers();
+    const serverName = servers.length > 0
+      ? (servers.length === 1 ? servers[0].name : `${servers.length} Servidores Conectados`)
       : 'Nenhum servidor encontrado';
 
     res.json({
       online: isOnline,
       botUser,
-      guildName,
+      serverName,
       totalMatriculas: databaseService.getMatriculas().length,
       totalRegras: ruleService.getRules().length,
       regrasAtivas: ruleService.getRules().filter(r => r.active).length
@@ -149,33 +149,33 @@ function createWebServer() {
 
   // Disparo de mensagem para membros que JÁ ESTÃO no servidor
   app.post('/api/dm-triggers/broadcast-existing', async (req, res) => {
-    const { guildId, message } = req.body;
+    const { serverId, message } = req.body;
     if (!message) {
       return res.status(400).json({ error: 'Conteúdo da mensagem é obrigatório.' });
     }
 
-    const result = await discordService.broadcastToExistingMembers(guildId, message);
+    const result = await stoatService.broadcastToExistingMembers(serverId, message);
     if (!result.success) {
       return res.status(400).json(result);
     }
     res.json(result);
   });
 
-  // 6. Integração Dinâmica com o Discord (Servidores, Cargos e Canais)
-  app.get('/api/discord/guilds', async (req, res) => {
-    const guilds = await discordService.getGuilds();
-    res.json(guilds);
+  // 6. Integração Dinâmica com o Stoat (Servidores, Cargos e Canais)
+  app.get('/api/stoat/servers', async (req, res) => {
+    const servers = await stoatService.getServers();
+    res.json(servers);
   });
 
-  app.get('/api/discord/guilds/:guildId/roles', async (req, res) => {
-    const { guildId } = req.params;
-    const roles = await discordService.getGuildRoles(guildId);
+  app.get('/api/stoat/servers/:serverId/roles', async (req, res) => {
+    const { serverId } = req.params;
+    const roles = await stoatService.getServerRoles(serverId);
     res.json(roles);
   });
 
-  app.get('/api/discord/guilds/:guildId/channels', async (req, res) => {
-    const { guildId } = req.params;
-    const channels = await discordService.getGuildChannels(guildId);
+  app.get('/api/stoat/servers/:serverId/channels', async (req, res) => {
+    const { serverId } = req.params;
+    const channels = await stoatService.getServerChannels(serverId);
     res.json(channels);
   });
 
@@ -186,7 +186,7 @@ function createWebServer() {
       return res.status(400).json({ error: 'ID do Usuário e Mensagem são obrigatórios.' });
     }
 
-    const result = await discordService.sendDMToUser(userId, message);
+    const result = await stoatService.sendDMToUser(userId, message);
     if (!result.success) {
       return res.status(400).json(result);
     }
@@ -196,5 +196,3 @@ function createWebServer() {
 
   return app;
 }
-
-module.exports = { createWebServer };

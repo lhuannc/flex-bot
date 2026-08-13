@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-const DM_RULES_FILE = path.join(__dirname, '../data/dm_rules.json');
+const DM_RULES_FILE = path.join(import.meta.dirname, '../data/dm_rules.json');
 
 /**
  * Garante a existência do arquivo de regras de DM e URA Multi-Nível
@@ -44,7 +44,7 @@ function ensureFileExists() {
 /**
  * Obtém as regras de DM e árvore de URA
  */
-function getDMRules() {
+export function getDMRules() {
   try {
     ensureFileExists();
     const data = fs.readFileSync(DM_RULES_FILE, 'utf-8');
@@ -58,7 +58,7 @@ function getDMRules() {
 /**
  * Salva as regras de DM e árvore de URA
  */
-function saveDMRules(data) {
+export function saveDMRules(data) {
   try {
     ensureFileExists();
     fs.writeFileSync(DM_RULES_FILE, JSON.stringify(data, null, 2), 'utf-8');
@@ -66,8 +66,3 @@ function saveDMRules(data) {
     console.error('[dmRuleService] Erro ao salvar dm_rules.json no disco:', err);
   }
 }
-
-module.exports = {
-  getDMRules,
-  saveDMRules
-};

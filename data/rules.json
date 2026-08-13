@@ -5,8 +5,7 @@
     "description": "Valida matrículas de 8 dígitos presentes na base oficial de dados (matriculas.json) e atribui o cargo configurado.",
     "matchType": "DATABASE",
     "triggerValue": "",
-    "guildId": "1532769863808843959",
-    "roleId": "1534602103706882139",
+    "roleId": "01KZXQBBYYFM3GJ2ANJZ8X5YXJ",
     "allowedChannels": [],
     "blacklistedChannels": [],
     "allowedRoles": [],
@@ -30,10 +29,11 @@
       }
     ],
     "welcomeMessage": "👋 **Olá! Seja bem-vindo ao atendimento automatizado.**\n\nPor favor, envie sua matrícula oficial para validar seu acesso.",
-    "successMessage": "✅ **Acesso Liberado!** {user} Sua matrícula foi validada com sucesso.\nAcesse o LINK - https://discord.com/channels/1532769863808843959/1532769864240988364",
+    "successMessage": "✅ **Acesso Liberado!** {user} Sua matrícula foi validada com sucesso.\n",
     "errorMessage": "❌ {user} **Matrícula não encontrada.** Verifique se você digitou os 8 números corretamente ou procure a coordenação.",
     "active": true,
-    "allowedChannelId": "1532769864240988363",
-    "deleteDelaySeconds": 30
+    "allowedChannelId": "01KZXQATXHBAG8TMDXXM6EVJND",
+    "deleteDelaySeconds": 30,
+    "serverId": "01KZXQATXHBC8QNAH9TZ8GRW13"
   }
 ]
