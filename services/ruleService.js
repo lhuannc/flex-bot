@@ -16,7 +16,18 @@ function normalizeRule(rule) {
   const { guildId, ...rest } = rule;
   return {
     ...rest,
-    serverId: rule.serverId || guildId || ''
+    serverId: rule.serverId || guildId || '',
+    usedMessage: rule.usedMessage || DEFAULT_USED_MESSAGE,
+    // QUANDO: gatilho único da regra. Regras antigas (sem o campo) validam matrícula.
+    triggerType: rule.triggerType === 'MEMBER_JOIN' ? 'MEMBER_JOIN' : 'MATRICULA',
+    // ENTÃO: consequências combináveis. Ausentes = ligadas (comportamento anterior),
+    // exceto a DM, que é novidade e nasce desligada em regras antigas.
+    actions: {
+      assignRole: rule.actions?.assignRole !== false,
+      sendMessage: rule.actions?.sendMessage !== false,
+      sendDM: rule.actions?.sendDM === true
+    },
+    dmMessage: rule.dmMessage || ''
   };
 }
 
@@ -51,6 +62,7 @@ function ensureRulesFileExists() {
           welcomeMessage: '👋 **Olá! Seja bem-vindo ao servidor.**\n\nPor favor, envie sua matrícula oficial para validar seu acesso:',
           successMessage: '✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído.',
           errorMessage: '❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados.',
+          usedMessage: '🚫 {user}: **Esta matrícula já foi utilizada.** Cada matrícula libera o acesso uma única vez.',
           active: true
         }
       ];
@@ -146,6 +158,13 @@ export function createRule(ruleData) {
     description: ruleData.description || '',
     matchType: 'DATABASE',
     triggerValue: '',
+    triggerType: ruleData.triggerType === 'MEMBER_JOIN' ? 'MEMBER_JOIN' : 'MATRICULA',
+    actions: {
+      assignRole: ruleData.actions?.assignRole !== false,
+      sendMessage: ruleData.actions?.sendMessage !== false,
+      sendDM: ruleData.actions?.sendDM === true
+    },
+    dmMessage: ruleData.dmMessage || '',
     serverId: ruleData.serverId || ruleData.guildId || process.env.SERVER_ID || '',
     roleId: ruleData.roleId || '',
     allowedChannelId: ruleData.allowedChannelId || '',
@@ -160,6 +179,7 @@ export function createRule(ruleData) {
     welcomeMessage: ruleData.welcomeMessage || '',
     successMessage: ruleData.successMessage || '✅ Acesso liberado! {user}, sua matrícula foi validada.',
     errorMessage: ruleData.errorMessage || '❌ {user}: Matrícula não encontrada.',
+    usedMessage: ruleData.usedMessage || DEFAULT_USED_MESSAGE,
     active: ruleData.active !== false
   };
 
@@ -203,19 +223,46 @@ export function deleteRule(id) {
 }
 
 /**
- * Avalia se uma entrada existe na base de dados de matrículas (matriculas.json)
+ * Retorna as regras ativas cujo QUANDO é "Novos membros do servidor",
+ * opcionalmente filtradas pelo servidor onde o membro entrou.
+ * @param {string} [serverId]
+ */
+export function getMemberJoinRules(serverId = null) {
+  return getRules().filter(rule => {
+    if (!rule.active || rule.triggerType !== 'MEMBER_JOIN') return false;
+    if (serverId && rule.serverId && rule.serverId !== serverId) return false;
+    return true;
+  });
+}
+
+/**
+ * Mensagem padrão exibida quando a matrícula existe mas já foi consumida
+ */
+export const DEFAULT_USED_MESSAGE = '🚫 {user}: **Esta matrícula já foi utilizada.** Cada matrícula libera o acesso uma única vez. Procure o suporte caso precise de uma nova liberação.';
+
+/**
+ * Avalia se uma entrada existe na base de matrículas (matriculas.json)
+ * e se ainda não foi consumida (matriculas_usos.json)
+ * @returns {{ success: boolean, reason: 'NOT_FOUND'|'ALREADY_USED'|null, uso: object|null }}
  */
 export function evaluateMatch(input) {
-  if (!input) return { success: false };
+  if (!input) return { success: false, reason: 'NOT_FOUND', uso: null };
+
   const cleanInput = String(input).trim();
-  return { success: databaseService.validarMatricula(cleanInput) };
+  const { existe, usada, uso } = databaseService.consultarMatricula(cleanInput);
+
+  if (!existe) return { success: false, reason: 'NOT_FOUND', uso: null };
+  if (usada) return { success: false, reason: 'ALREADY_USED', uso };
+
+  return { success: true, reason: null, uso: null };
 }
 
 /**
  * Avalia uma requisição de comando/mensagem contra todas as regras ativas
  */
 export function evaluateRules(code, channelId = null, isDM = false, serverId = null) {
-  const rules = getRules().filter(r => r.active);
+  // Somente regras cujo QUANDO é "validar matrícula" participam desta avaliação
+  const rules = getRules().filter(r => r.active && r.triggerType === 'MATRICULA');
 
   for (const rule of rules) {
     // 1. Validar Servidor
@@ -249,9 +296,22 @@ export function evaluateRules(code, channelId = null, isDM = false, serverId = n
         matchedRule: rule,
         success: true,
         isChannelInvalid: false,
+        alreadyUsed: false,
         serverIdToAssign: rule.serverId || serverId || process.env.SERVER_ID,
         roleIdToAssign: rule.roleId || process.env.ROLE_ID,
         message: rule.successMessage
+      };
+    }
+
+    // 5. A matrícula existe, porém já foi consumida anteriormente
+    if (matchResult.reason === 'ALREADY_USED') {
+      return {
+        matchedRule: rule,
+        success: false,
+        isChannelInvalid: false,
+        alreadyUsed: true,
+        uso: matchResult.uso,
+        message: rule.usedMessage || DEFAULT_USED_MESSAGE
       };
     }
 
@@ -259,7 +319,21 @@ export function evaluateRules(code, channelId = null, isDM = false, serverId = n
       matchedRule: rule,
       success: false,
       isChannelInvalid: false,
+      alreadyUsed: false,
       message: rule.errorMessage
+    };
+  }
+
+  // Nenhuma regra aplicável: ainda assim diferencia "já utilizada" de "não encontrada"
+  const fallbackMatch = evaluateMatch(code);
+  if (fallbackMatch.reason === 'ALREADY_USED') {
+    return {
+      matchedRule: null,
+      success: false,
+      isChannelInvalid: false,
+      alreadyUsed: true,
+      uso: fallbackMatch.uso,
+      message: DEFAULT_USED_MESSAGE
     };
   }
 
@@ -267,6 +341,7 @@ export function evaluateRules(code, channelId = null, isDM = false, serverId = n
     matchedRule: null,
     success: false,
     isChannelInvalid: false,
+    alreadyUsed: false,
     message: '❌ Matrícula não encontrada.'
   };
 }

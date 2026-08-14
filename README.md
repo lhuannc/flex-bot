@@ -183,3 +183,4 @@ Se você já rodava o FlexBot no Discord, atente-se aos pontos abaixo:
 | [docs/data_storage_architecture.md](docs/data_storage_architecture.md) | Persistência em JSON e Docker |
 | [docs/deployment_guide.md](docs/deployment_guide.md) | Hospedagem gratuita (Render / Railway) |
 | [docs/system_limitations.md](docs/system_limitations.md) | Rate limits do Stoat e concorrência |
+| [docs/access_flows.md](docs/access_flows.md) | Fluxos de permissão de acesso: canais de texto e voz (COLABORADOR + VOZ) |

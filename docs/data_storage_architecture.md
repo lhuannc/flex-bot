@@ -15,7 +15,8 @@ c:/projetos/flex-bot/
     ├── dm_rules.json       # Estrutura da Árvore de URA Multi-Nível e Consequências
     ├── dm_triggers.json    # Gatilhos de disparo automático de DM (Server Join / Palavras-chave)
     ├── welcome.json        # Configurações da mensagem de boas-vindas
-    └── matriculas.json     # Base oficial de matrículas autorizadas no sistema
+    ├── matriculas.json     # Base oficial de matrículas autorizadas no sistema
+    └── matriculas_usos.json # Registro de matrículas já consumidas (uso único)
 ```
 
 ---
@@ -42,8 +43,8 @@ services:
 
 ## 📄 3. Detalhamento dos Arquivos de Dados
 
-### 3.1 `data/rules.json` — Regras de Canais de Texto
-Armazena a lista de regras exclusivas para validação direta em canais do Stoat.
+### 3.1 `data/rules.json` — Regras de Canal no modelo **Quando → Então**
+Armazena a lista de regras do wizard de canal. Cada regra tem **um gatilho** (`triggerType`) e **uma ou duas consequências** (`actions`).
 
 > 📌 Os IDs do Stoat são **ULIDs** (ex: `01HB2C3D4E5F6G7H8J9K0LMNPQ`), e não números longos como os snowflakes do Discord.
 
@@ -54,16 +55,40 @@ Armazena a lista de regras exclusivas para validação direta em canais do Stoat
     "name": "Validação Canal Oficial",
     "description": "Regra exclusiva para o canal oficial de matrículas",
     "matchType": "DATABASE",
+    "triggerType": "MATRICULA",
+    "actions": { "assignRole": true, "sendMessage": true },
     "serverId": "01HB2C3D4E5F6G7H8J9K0LMNPQ",
     "roleId": "01HB2C3D4E5F6G7H8J9K0ROLE1",
     "allowedChannelId": "01HB2C3D4E5F6G7H8J9K0CHAN1",
     "deleteDelaySeconds": 10,
     "successMessage": "✅ **Acesso Liberado!** {user}, sua matrícula foi validada com sucesso.",
     "errorMessage": "❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados.",
+    "usedMessage": "🚫 {user}: **Esta matrícula já foi utilizada.**",
     "active": true
   }
 ]
 ```
+
+#### QUANDO — `triggerType` (gatilho único por regra)
+
+| Valor | Dispara em | Papel do `allowedChannelId` |
+|---|---|---|
+| `MATRICULA` | Alguém digita uma matrícula no canal (`messageCreate`) | Canal **escutado** para validação |
+| `MEMBER_JOIN` | Um novo integrante entra no servidor (`serverMemberJoin`) | Canal onde a **mensagem é publicada** |
+
+Cada regra tem um gatilho só — para cobrir os dois eventos, crie duas regras.
+
+#### ENTÃO — `actions` (consequências combináveis)
+
+| Ação | Efeito |
+|---|---|
+| `assignRole` | Atribui `roleId` ao usuário, mesclando com os cargos atuais |
+| `sendMessage` | Publica no canal e agenda a auto-deleção conforme `deleteDelaySeconds` |
+| `sendDM` | Envia `dmMessage` na **DM privada** do usuário (bloqueio de DMs é registrado no log sem afetar as demais ações) |
+
+Com `triggerType: "MEMBER_JOIN"`, o `successMessage` é a **mensagem de boas-vindas**; `errorMessage` e `usedMessage` ficam sem uso (não existe falha ao entrar no servidor) e o painel os oculta.
+
+> 🔁 **Compatibilidade:** regras gravadas antes deste modelo não têm `triggerType` nem `actions`. O `normalizeRule()` preenche `MATRICULA` + `assignRole` e `sendMessage` ligadas (o comportamento anterior); `sendDM` nasce **desligada** em regras antigas, já que é uma consequência nova — nenhuma regra existente muda de efeito.
 
 #### 🔄 Compatibilidade com dados da versão Discord
 
@@ -127,8 +152,28 @@ Armazena a lista numérica de matrículas permitidas no sistema. Cadastros em lo
 ]
 ```
 
+### 3.3.1 `data/matriculas_usos.json` — Registro de Uso Único
+Cada matrícula libera o acesso **uma única vez**. Assim que uma validação é concluída com sucesso (comando `!matricula`, DM, canal autorizado ou URA), a matrícula é gravada neste arquivo e passa a ser recusada em qualquer nova tentativa — inclusive do mesmo usuário.
+
+```json
+{
+  "40123456": {
+    "userId": "01HB2C3D4E5F6G7H8J9K0USER1",
+    "username": "maria.silva",
+    "origin": "URA",
+    "usedAt": "2026-08-14T14:28:38.366Z"
+  }
+}
+```
+
+Regras de manutenção:
+
+- **Liberar novamente:** pelo painel web (botão *Liberar* na linha da matrícula ou *Liberar Selecionadas*), ou via `POST /api/matriculas/:numero/liberar` e `POST /api/matriculas/liberar-bulk`.
+- **Exclusão da base:** ao remover uma matrícula de `matriculas.json`, o registro de uso correspondente também é apagado.
+- **Rollback automático:** se a matrícula for validada mas a atribuição do cargo falhar no Stoat, o consumo é desfeito para que o usuário possa tentar novamente.
+
 ### 3.4 `data/dm_triggers.json` — Gatilhos de Disparo de DM
-Armazena os gatilhos automáticos para conversas privadas (ao entrar no servidor ou saudações por palavras-chave):
+Armazena os gatilhos automáticos de **mensagem privada** (ao entrar no servidor ou saudações por palavras-chave):
 
 ```json
 {
@@ -143,13 +188,15 @@ Armazena os gatilhos automáticos para conversas privadas (ao entrar no servidor
 }
 ```
 
+> 💡 Boas-vindas **em canal público** não ficam aqui — são uma regra do wizard com `triggerType: "MEMBER_JOIN"` (ver §3.1). `getDMTriggers()` mescla o padrão nas chaves ausentes, então arquivos de versões anteriores continuam válidos.
+
 ---
 
 ## ⚙️ 4. Serviços de Leitura e Escrita (Internal APIs)
 
 A leitura e atualização dos dados são centralizadas nos módulos Node.js (ES Modules) localizados na pasta `services/`:
 
-- [`services/databaseService.js`](file:///c:/projetos/flex-bot/services/databaseService.js): Gerencia inserções individuais, buscas por filtro, deleções e inserção/remoção em lote (`/api/matriculas/bulk`, `/api/matriculas/delete-bulk`).
+- [`services/databaseService.js`](file:///c:/projetos/flex-bot/services/databaseService.js): Gerencia inserções individuais, buscas por filtro, deleções e inserção/remoção em lote (`/api/matriculas/bulk`, `/api/matriculas/delete-bulk`), além do controle de uso único (`consumirMatricula`, `liberarMatricula`, `/api/matriculas/usos`).
 - [`services/ruleService.js`](file:///c:/projetos/flex-bot/services/ruleService.js): Gerencia o CRUD das regras de automação de canais e a normalização `guildId → serverId`.
 - [`services/dmRuleService.js`](file:///c:/projetos/flex-bot/services/dmRuleService.js): Gerencia a persistência da árvore de URA e gatilhos de mensagem direta.
 - [`services/stoatService.js`](file:///c:/projetos/flex-bot/services/stoatService.js): Não persiste em disco — é a fronteira de integração com a API do Stoat.

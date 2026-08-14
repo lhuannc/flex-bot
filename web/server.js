@@ -27,11 +27,16 @@ export function createWebServer() {
       ? (servers.length === 1 ? servers[0].name : `${servers.length} Servidores Conectados`)
       : 'Nenhum servidor encontrado';
 
+    const totalMatriculas = databaseService.getMatriculas().length;
+    const totalUsadas = Object.keys(databaseService.getUsos()).length;
+
     res.json({
       online: isOnline,
       botUser,
       serverName,
-      totalMatriculas: databaseService.getMatriculas().length,
+      totalMatriculas,
+      totalUsadas,
+      totalDisponiveis: Math.max(0, totalMatriculas - totalUsadas),
       totalRegras: ruleService.getRules().length,
       regrasAtivas: ruleService.getRules().filter(r => r.active).length
     });
@@ -40,6 +45,38 @@ export function createWebServer() {
   // 2. Base de Matrículas (CRUD & Importação / Exclusão em Massa)
   app.get('/api/matriculas', (req, res) => {
     res.json(databaseService.getMatriculas());
+  });
+
+  // Registro de matrículas já consumidas: { "<matricula>": { userId, username, origin, usedAt } }
+  app.get('/api/matriculas/usos', (req, res) => {
+    res.json(databaseService.getUsos());
+  });
+
+  // Libera uma matrícula já utilizada, permitindo um novo uso
+  app.post('/api/matriculas/:numero/liberar', (req, res) => {
+    const { numero } = req.params;
+    const success = databaseService.liberarMatricula(numero);
+    if (!success) {
+      return res.status(404).json({ error: 'Esta matrícula não possui registro de uso.' });
+    }
+
+    res.json({ success: true, usos: databaseService.getUsos() });
+  });
+
+  // Libera várias matrículas utilizadas de uma só vez
+  app.post('/api/matriculas/liberar-bulk', (req, res) => {
+    const { matriculas } = req.body;
+
+    if (!Array.isArray(matriculas) || matriculas.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma matrícula selecionada para liberação.' });
+    }
+
+    let releasedCount = 0;
+    for (const numero of matriculas) {
+      if (databaseService.liberarMatricula(numero)) releasedCount++;
+    }
+
+    res.json({ success: true, releasedCount, usos: databaseService.getUsos() });
   });
 
   app.post('/api/matriculas', (req, res) => {
@@ -177,6 +214,56 @@ export function createWebServer() {
     const { serverId } = req.params;
     const channels = await stoatService.getServerChannels(serverId);
     res.json(channels);
+  });
+
+  // Membros do servidor com seus cargos (para a área de Limpeza de Cargos)
+  app.get('/api/stoat/servers/:serverId/members', async (req, res) => {
+    const { serverId } = req.params;
+    const members = await stoatService.getServerMembers(serverId);
+    res.json(members);
+  });
+
+  // Limpeza de cargos em massa: remove cargos selecionados (ou todos) de vários membros
+  app.post('/api/roles/cleanup', async (req, res) => {
+    const { serverId, userIds, roleIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'Nenhum membro selecionado para a limpeza.' });
+    }
+
+    const removeAll = roleIds === 'ALL';
+    if (!removeAll && (!Array.isArray(roleIds) || roleIds.length === 0)) {
+      return res.status(400).json({ error: 'Nenhum cargo selecionado. Envie uma lista de cargos ou "ALL".' });
+    }
+
+    let changedCount = 0;
+    let unchangedCount = 0;
+    const failures = [];
+
+    for (const userId of userIds) {
+      const result = await stoatService.removeRolesFromMember(userId, removeAll ? 'ALL' : roleIds, serverId);
+
+      if (!result.success) {
+        failures.push({ userId, message: result.message });
+      } else if (result.changed) {
+        changedCount++;
+      } else {
+        unchangedCount++;
+      }
+
+      // Delay entre PATCHes para respeitar o rate-limit por servidor do Stoat
+      if (userIds.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
+    }
+
+    res.json({
+      success: true,
+      processed: userIds.length,
+      changedCount,
+      unchangedCount,
+      failures
+    });
   });
 
   // 7. Enviar DM Direta Individual

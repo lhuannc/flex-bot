@@ -769,6 +769,65 @@ input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:foc
 input:checked + .slider { background-color: var(--color-primary); }
 input:checked + .slider:before { transform: translateX(20px); }
 
+/* WIZARD "QUANDO" — CARTÕES DE GATILHO (SELEÇÃO ÚNICA) */
+.trigger-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  background: #f8fafc;
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color .2s, background-color .2s;
+}
+
+.trigger-option:hover { border-color: var(--color-gradient-blue-mid); }
+
+.trigger-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.trigger-option:has(input[type="radio"]:checked) {
+  border-color: var(--color-primary);
+  background: #eff6ff;
+}
+
+.trigger-title {
+  display: block;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.trigger-desc {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* WIZARD "ENTÃO" — BLOCOS DE CONSEQUÊNCIA */
+.action-block {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+  margin-bottom: 20px;
+}
+
+/* Campos desativados quando a consequência correspondente está desligada */
+.action-fields-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* TOAST */
 .toast {
   position: fixed;

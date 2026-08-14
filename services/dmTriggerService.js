@@ -4,6 +4,27 @@ import path from 'node:path';
 const TRIGGERS_FILE = path.join(import.meta.dirname, '../data/dm_triggers.json');
 
 /**
+ * Configuração padrão de todos os gatilhos
+ */
+function defaultTriggers() {
+  return {
+    serverJoin: {
+      enabled: true,
+      message: '👋 **Olá {user}! Seja bem-vindo(a) pela primeira vez ao servidor {server}!**\n\nPor favor, envie sua **matrícula de 8 dígitos** aqui nesta conversa privada para liberar seu cargo de acesso.'
+    },
+    existingMembersBroadcast: {
+      enabled: true,
+      message: '📢 **Olá {user}! Comunicado Oficial da Prefeitura do Rio - Servidor {server}.**\n\nPara atualizar e validar seu acesso corporativo aos canais, por favor responda a esta mensagem enviando sua **matrícula de 8 dígitos**.'
+    },
+    keywordGreeting: {
+      enabled: true,
+      keywords: ['oi', 'olá', 'ola', 'ajuda', 'matricula', 'matrícula', 'menu', 'iniciar', 'bom dia', 'boa tarde', 'boa noite'],
+      message: '👋 **Olá {user}! Eu sou o FlexBot.**\n\nPor favor, digite o número da sua **matrícula de 8 dígitos** aqui nesta conversa para validar seu acesso aos canais do servidor.'
+    }
+  };
+}
+
+/**
  * Garante a existência do arquivo de gatilhos de DM
  */
 function ensureFileExists() {
@@ -13,22 +34,7 @@ function ensureFileExists() {
       fs.mkdirSync(dir, { recursive: true });
     }
     if (!fs.existsSync(TRIGGERS_FILE)) {
-      const defaultTriggers = {
-        serverJoin: {
-          enabled: true,
-          message: '👋 **Olá {user}! Seja bem-vindo(a) pela primeira vez ao servidor {server}!**\n\nPor favor, envie sua **matrícula de 8 dígitos** aqui nesta conversa privada para liberar seu cargo de acesso.'
-        },
-        existingMembersBroadcast: {
-          enabled: true,
-          message: '📢 **Olá {user}! Comunicado Oficial da Prefeitura do Rio - Servidor {server}.**\n\nPara atualizar e validar seu acesso corporativo aos canais, por favor responda a esta mensagem enviando sua **matrícula de 8 dígitos**.'
-        },
-        keywordGreeting: {
-          enabled: true,
-          keywords: ['oi', 'olá', 'ola', 'ajuda', 'matricula', 'matrícula', 'menu', 'iniciar', 'bom dia', 'boa tarde', 'boa noite'],
-          message: '👋 **Olá {user}! Eu sou o FlexBot.**\n\nPor favor, digite o número da sua **matrícula de 8 dígitos** aqui nesta conversa para validar seu acesso aos canais do servidor.'
-        }
-      };
-      fs.writeFileSync(TRIGGERS_FILE, JSON.stringify(defaultTriggers, null, 2), 'utf-8');
+      fs.writeFileSync(TRIGGERS_FILE, JSON.stringify(defaultTriggers(), null, 2), 'utf-8');
     }
   } catch (err) {
     console.error('[dmTriggerService] Erro ao verificar/criar dm_triggers.json:', err);
@@ -36,16 +42,22 @@ function ensureFileExists() {
 }
 
 /**
- * Obtém as configurações dos gatilhos de DM
+ * Obtém as configurações dos gatilhos de DM.
+ * Gatilhos ausentes no arquivo (adicionados em versões novas) recebem o padrão,
+ * evitando que configurações antigas quebrem ao ler uma chave inexistente.
  */
 export function getDMTriggers() {
+  const padrao = defaultTriggers();
+
   try {
     ensureFileExists();
     const data = fs.readFileSync(TRIGGERS_FILE, 'utf-8');
-    return JSON.parse(data);
+    const salvo = JSON.parse(data) || {};
+
+    return { ...padrao, ...salvo };
   } catch (error) {
     console.error('[dmTriggerService] Erro ao ler gatilhos de DM:', error);
-    return {};
+    return padrao;
   }
 }
 

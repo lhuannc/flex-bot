@@ -1,6 +1,7 @@
 import * as dmRuleService from './dmRuleService.js';
 import * as ruleService from './ruleService.js';
 import * as stoatService from './stoatService.js';
+import * as databaseService from './databaseService.js';
 
 // Estado em memória das sessões ativas dos usuários na URA (userId -> sessionData)
 const userSessions = new Map();
@@ -103,6 +104,18 @@ export async function processIVRMessage(message) {
     const result = ruleService.evaluateMatch(content);
 
     if (result.success) {
+      // Consome a matrícula antes de conceder o acesso (uso único)
+      const claim = databaseService.consumirMatricula(content, {
+        userId,
+        username: message.author?.username || '',
+        origin: 'URA'
+      });
+
+      if (!claim.success) {
+        await replyTo(message, `🚫 **A matrícula "${content}" já foi utilizada.** Cada matrícula libera o acesso uma única vez. Informe outra matrícula ou procure o suporte:`);
+        return true;
+      }
+
       // Busca inteligente de Role ID (Opção da URA -> Regras Ativas -> .env)
       let roleId = cons.roleId || pending.roleId || process.env.ROLE_ID;
       if (!roleId) {
@@ -117,7 +130,10 @@ export async function processIVRMessage(message) {
         if (roleResult.success) {
           await replyTo(message, `✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada com sucesso e seu cargo foi atribuído.`);
         } else {
-          await replyTo(message, `✅ **Matrícula Validada!** Ocorreu um pequeno aviso ao aplicar o cargo no servidor (${roleResult.message}).`);
+          // Cargo não aplicado: devolve a matrícula para uma nova tentativa
+          databaseService.liberarMatricula(content);
+          await replyTo(message, `⚠️ **Matrícula válida, mas o cargo não pôde ser aplicado** (${roleResult.message}). Digite a matrícula novamente em instantes:`);
+          return true;
         }
       } else {
         await replyTo(message, `✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada.`);
@@ -139,6 +155,8 @@ export async function processIVRMessage(message) {
       }
 
       clearSession(userId);
+    } else if (result.reason === 'ALREADY_USED') {
+      await replyTo(message, `🚫 **A matrícula "${content}" já foi utilizada.** Cada matrícula libera o acesso uma única vez. Informe outra matrícula ou procure o suporte:`);
     } else {
       await replyTo(message, `❌ **Matrícula "${content}" não encontrada na base.** Verifique os 8 números digitados e tente novamente:`);
     }

@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'channel-flow-tab': { title: 'Fluxo de Validação no Canal', sub: 'Configure as regras de validação em canais de texto através do assistente passo a passo.' },
     'dm-flow-tab': { title: 'Fluxo de Atendimento na DM & URA', sub: 'Configure o atendimento automático privado, comunicados e menus URA com wizard dedicado.' },
     'database-tab': { title: 'Base Oficial de Matrículas (matriculas.json)', sub: 'Gerencie as matrículas numéricas autorizadas no sistema corporativo.' },
+    'cleanup-tab': { title: 'Limpeza de Cargos em Massa', sub: 'Visualize os cargos do servidor e remova membros deles em lote.' },
     'dm-tab': { title: 'Envio de Mensagem Direta Avulsa (DM)', sub: 'Dispare mensagens diretas no privado de usuários específicos do Stoat.' }
   };
 
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentServerChannels = [];
   let rulesCache = [];
   let allMatriculasCache = [];
+  let usosMatriculasCache = {};
   let selectedMatriculasSet = new Set();
   let dmRulesState = { greeting: { enabled: true, message: '' }, ivrTree: [] };
 
@@ -240,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+
   function populateServerSelectOptions() {
     const channelServerSelect = document.getElementById('channel-rule-server-id');
     const options = ['<option value="">Selecione o servidor do Stoat...</option>'];
@@ -251,6 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (channelServerSelect) channelServerSelect.innerHTML = options.join('');
+
+    // A área de Limpeza de Cargos usa a mesma lista de servidores
+    populateCleanupServerSelect();
   }
 
   const channelServerSelectElem = document.getElementById('channel-rule-server-id');
@@ -332,6 +338,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ? (rule.deleteDelaySeconds === 0 ? 'Mensagem Permanente' : `Auto-Deletar: ${rule.deleteDelaySeconds}s`)
         : 'Auto-Deletar: 10s';
 
+      const isMemberJoin = rule.triggerType === 'MEMBER_JOIN';
+      const quandoBadge = isMemberJoin ? 'Quando: Novo membro' : 'Quando: Validar matrícula';
+      const quandoIcon = isMemberJoin ? 'fa-user-plus' : 'fa-graduation-cap';
+
+      const entaoList = [];
+      if (rule.actions?.assignRole !== false) entaoList.push('Atribuir cargo');
+      if (rule.actions?.sendMessage !== false) entaoList.push('Enviar mensagem');
+      if (rule.actions?.sendDM === true) entaoList.push('Enviar DM');
+      const entaoBadge = `Então: ${entaoList.join(' + ') || 'Nenhuma ação'}`;
+
       return `
         <div class="rule-item">
           <div class="rule-info">
@@ -344,7 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </h4>
             <p>${escapeHtml(rule.description || 'Sem descrição')}</p>
             <div class="rule-tags">
-              <span class="badge badge-cyan"><i class="fa-solid fa-table"></i> Leitura: matriculas.json</span>
+              <span class="badge badge-cyan"><i class="fa-solid ${quandoIcon}"></i> ${escapeHtml(quandoBadge)}</span>
+              <span class="badge badge-cyan"><i class="fa-solid fa-wand-magic-sparkles"></i> ${escapeHtml(entaoBadge)}</span>
               <span class="badge badge-purple"><i class="fa-solid fa-server"></i> ${escapeHtml(serverName)}</span>
               <span class="badge badge-purple"><i class="fa-solid fa-user-shield"></i> ${escapeHtml(roleBadge)}</span>
               <span class="badge"><i class="fa-solid fa-hashtag"></i> ${escapeHtml(channelBadge)}</span>
@@ -381,14 +398,97 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadServerRolesAndChannels(rule.serverId, rule.roleId, rule.allowedChannelId);
     }
 
+    // QUANDO: gatilho único
+    const triggerType = rule.triggerType === 'MEMBER_JOIN' ? 'MEMBER_JOIN' : 'MATRICULA';
+    const triggerRadio = document.querySelector(`input[name="channel-rule-trigger"][value="${triggerType}"]`);
+    if (triggerRadio) triggerRadio.checked = true;
+
+    // ENTÃO: consequências combináveis
+    document.getElementById('channel-action-assign-role').checked = rule.actions?.assignRole !== false;
+    document.getElementById('channel-action-send-message').checked = rule.actions?.sendMessage !== false;
+    document.getElementById('channel-action-send-dm').checked = rule.actions?.sendDM === true;
+    document.getElementById('channel-rule-dm-msg').value = rule.dmMessage || '';
+
     document.getElementById('channel-rule-delete-delay').value = typeof rule.deleteDelaySeconds === 'number' ? rule.deleteDelaySeconds : 10;
     document.getElementById('channel-rule-success-msg').value = rule.successMessage || '';
     document.getElementById('channel-rule-error-msg').value = rule.errorMessage || '';
+    document.getElementById('channel-rule-used-msg').value = rule.usedMessage || '';
     document.getElementById('channel-rule-active').checked = rule.active !== false;
 
+    syncWizardVisibility();
     goToChannelStep(1);
     showToast(`Carregada regra "${rule.name}" para edição.`, 'success');
   }
+
+  /**
+   * Lê o gatilho selecionado no Passo 2
+   */
+  function getSelectedTrigger() {
+    const checked = document.querySelector('input[name="channel-rule-trigger"]:checked');
+    return checked ? checked.value : 'MATRICULA';
+  }
+
+  /**
+   * Ajusta o wizard ao gatilho e às consequências escolhidos:
+   * - "Novos membros" não tem mensagens de erro/reutilização;
+   * - consequência desligada esmaece e desabilita os campos dela.
+   */
+  function syncWizardVisibility() {
+    const isMemberJoin = getSelectedTrigger() === 'MEMBER_JOIN';
+
+    const matriculaMessages = document.getElementById('channel-matricula-messages');
+    if (matriculaMessages) matriculaMessages.style.display = isMemberJoin ? 'none' : '';
+
+    const successLabel = document.getElementById('label-channel-success-msg');
+    if (successLabel) {
+      successLabel.textContent = isMemberJoin
+        ? 'Mensagem de Boas-Vindas no Canal'
+        : 'Mensagem de Sucesso no Canal';
+    }
+
+    const channelHelp = document.getElementById('channel-rule-channel-help');
+    if (channelHelp) {
+      channelHelp.textContent = isMemberJoin
+        ? 'A mensagem de boas-vindas será publicada neste canal.'
+        : 'O FlexBot escutará a digitação de matrículas exclusivamente neste canal.';
+    }
+
+    const roleFields = document.getElementById('channel-action-role-fields');
+    const assignRole = document.getElementById('channel-action-assign-role');
+    if (roleFields && assignRole) {
+      roleFields.classList.toggle('action-fields-disabled', !assignRole.checked);
+    }
+
+    const messageFields = document.getElementById('channel-action-message-fields');
+    const sendMessage = document.getElementById('channel-action-send-message');
+    if (messageFields && sendMessage) {
+      messageFields.classList.toggle('action-fields-disabled', !sendMessage.checked);
+    }
+
+    const dmFields = document.getElementById('channel-action-dm-fields');
+    const sendDM = document.getElementById('channel-action-send-dm');
+    if (dmFields && sendDM) {
+      dmFields.classList.toggle('action-fields-disabled', !sendDM.checked);
+    }
+
+    const dmLabel = document.getElementById('label-channel-dm-msg');
+    if (dmLabel) {
+      dmLabel.textContent = isMemberJoin
+        ? 'Mensagem Privada de Boas-Vindas (DM)'
+        : 'Mensagem Privada (DM)';
+    }
+  }
+
+  document.querySelectorAll('input[name="channel-rule-trigger"]').forEach(radio => {
+    radio.addEventListener('change', syncWizardVisibility);
+  });
+
+  ['channel-action-assign-role', 'channel-action-send-message', 'channel-action-send-dm'].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.addEventListener('change', syncWizardVisibility);
+  });
+
+  syncWizardVisibility();
 
   const formChannelRule = document.getElementById('form-channel-rule-wizard');
   if (formChannelRule) {
@@ -396,19 +496,56 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const id = document.getElementById('channel-rule-id').value;
 
+      const triggerType = getSelectedTrigger();
+      const assignRole = document.getElementById('channel-action-assign-role').checked;
+      const sendMessage = document.getElementById('channel-action-send-message').checked;
+      const sendDM = document.getElementById('channel-action-send-dm').checked;
+
+      // Validações que dependem do QUANDO/ENTÃO escolhidos
+      if (!assignRole && !sendMessage && !sendDM) {
+        showToast('Selecione ao menos uma consequência no Passo 3 (Então).', 'error');
+        goToChannelStep(3);
+        return;
+      }
+
+      const roleId = document.getElementById('channel-rule-role-id').value;
+      if (assignRole && !roleId) {
+        showToast('Escolha o cargo a atribuir ou desligue a consequência "Atribuir cargo".', 'error');
+        goToChannelStep(3);
+        return;
+      }
+
+      const successMessage = document.getElementById('channel-rule-success-msg').value;
+      if (sendMessage && !successMessage.trim()) {
+        showToast('Preencha o texto da mensagem ou desligue a consequência "Enviar mensagem".', 'error');
+        goToChannelStep(3);
+        return;
+      }
+
+      const dmMessage = document.getElementById('channel-rule-dm-msg').value;
+      if (sendDM && !dmMessage.trim()) {
+        showToast('Preencha o texto da DM ou desligue a consequência "Enviar mensagem na DM".', 'error');
+        goToChannelStep(3);
+        return;
+      }
+
       const payload = {
         name: document.getElementById('channel-rule-name').value,
         description: document.getElementById('channel-rule-description').value,
         matchType: 'DATABASE',
         triggerValue: '',
+        triggerType,
+        actions: { assignRole, sendMessage, sendDM },
+        dmMessage: dmMessage.trim(),
         serverId: document.getElementById('channel-rule-server-id').value,
-        roleId: document.getElementById('channel-rule-role-id').value,
+        roleId,
         allowedChannelId: document.getElementById('channel-rule-channel-id').value,
         deleteDelaySeconds: parseInt(document.getElementById('channel-rule-delete-delay').value, 10) || 0,
         enableDM: false,
         isIVR: false,
-        successMessage: document.getElementById('channel-rule-success-msg').value,
+        successMessage,
         errorMessage: document.getElementById('channel-rule-error-msg').value,
+        usedMessage: document.getElementById('channel-rule-used-msg').value.trim(),
         active: document.getElementById('channel-rule-active').checked
       };
 
@@ -433,6 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(id ? 'Regra de canal atualizada!' : 'Nova regra de canal salva!', 'success');
           formChannelRule.reset();
           document.getElementById('channel-rule-id').value = '';
+          syncWizardVisibility();
           fetchRules();
           fetchBotStatus();
           goToChannelStep(1);
@@ -899,13 +1037,33 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- 5. BASE DE MATRÍCULAS (SELEÇÃO E EXCLUSÃO EM MASSA) ---
   async function fetchMatriculas() {
     try {
-      const res = await fetch('/api/matriculas');
-      allMatriculasCache = await res.json();
+      const [resLista, resUsos] = await Promise.all([
+        fetch('/api/matriculas'),
+        fetch('/api/matriculas/usos')
+      ]);
+      allMatriculasCache = await resLista.json();
+      usosMatriculasCache = await resUsos.json();
       selectedMatriculasSet.clear();
       filterAndRenderMatriculas();
     } catch (err) {
       console.error('Erro ao buscar matrículas:', err);
     }
+  }
+
+  async function fetchUsosMatriculas() {
+    try {
+      const res = await fetch('/api/matriculas/usos');
+      usosMatriculasCache = await res.json();
+    } catch (err) {
+      console.error('Erro ao buscar usos de matrículas:', err);
+    }
+  }
+
+  function formatDataUso(isoDate) {
+    if (!isoDate) return '';
+    const data = new Date(isoDate);
+    if (Number.isNaN(data.getTime())) return '';
+    return data.toLocaleString('pt-BR');
   }
 
   const searchInput = document.getElementById('input-search-matricula');
@@ -935,6 +1093,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tbody.innerHTML = list.map((item, idx) => {
       const isChecked = selectedMatriculasSet.has(item) ? 'checked' : '';
+      const uso = usosMatriculasCache[item];
+
+      const statusCell = uso
+        ? `<span class="badge" style="background: #fee2e2; color: #b91c1c;"><i class="fa-solid fa-lock"></i> Utilizada</span>
+           <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 4px;">
+             ${escapeHtml(uso.username || uso.userId || 'Usuário desconhecido')} · ${escapeHtml(formatDataUso(uso.usedAt))}${uso.origin ? ` · ${escapeHtml(uso.origin)}` : ''}
+           </div>`
+        : '<span class="badge badge-success">Disponível</span>';
+
+      const liberarBtn = uso
+        ? `<button class="btn btn-outline btn-liberar-matricula" data-numero="${escapeHtml(item)}" title="Permitir que esta matrícula seja usada novamente">
+             <i class="fa-solid fa-lock-open"></i> Liberar
+           </button>`
+        : '';
+
       return `
         <tr>
           <td style="text-align: center;">
@@ -942,11 +1115,14 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
           <td>${idx + 1}</td>
           <td><strong>${escapeHtml(item)}</strong></td>
-          <td><span class="badge badge-success">Válida</span></td>
+          <td>${statusCell}</td>
           <td>
-            <button class="btn btn-danger btn-delete-matricula" data-numero="${escapeHtml(item)}">
-              <i class="fa-solid fa-trash"></i> Remover
-            </button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              ${liberarBtn}
+              <button class="btn btn-danger btn-delete-matricula" data-numero="${escapeHtml(item)}">
+                <i class="fa-solid fa-trash"></i> Remover
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -987,6 +1163,10 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', () => deleteMatricula(btn.dataset.numero));
     });
 
+    document.querySelectorAll('.btn-liberar-matricula').forEach(btn => {
+      btn.addEventListener('click', () => liberarMatricula(btn.dataset.numero));
+    });
+
     updateBulkDeleteButtons(list);
   }
 
@@ -1010,6 +1190,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const filteredCount = currentFilteredList.length;
       btnDeleteFiltered.innerHTML = `<i class="fa-solid fa-filter-circle-xmark"></i> Excluir Todas as ${filteredCount} Filtradas`;
       btnDeleteFiltered.style.display = filteredCount > 0 ? 'inline-flex' : 'none';
+    }
+
+    const btnRelease = document.getElementById('btn-release-selected-matriculas');
+    if (btnRelease) {
+      const usadasSelecionadas = Array.from(selectedMatriculasSet).filter(m => usosMatriculasCache[m]).length;
+      btnRelease.innerHTML = `<i class="fa-solid fa-lock-open"></i> Liberar Selecionadas (${usadasSelecionadas})`;
+      btnRelease.style.display = usadasSelecionadas > 0 ? 'inline-flex' : 'none';
     }
   }
 
@@ -1036,6 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(`🎉 ${data.removedCount} matrículas excluídas com sucesso! Total restante: ${data.totalMatriculas}`, 'success');
           allMatriculasCache = data.matriculas;
           selectedMatriculasSet.clear();
+          await fetchUsosMatriculas();
           filterAndRenderMatriculas();
           fetchBotStatus();
         } else {
@@ -1076,6 +1264,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(`🎉 ${data.removedCount} matrículas filtradas excluídas com sucesso! Total restante: ${data.totalMatriculas}`, 'success');
           allMatriculasCache = data.matriculas;
           selectedMatriculasSet.clear();
+          await fetchUsosMatriculas();
           filterAndRenderMatriculas();
           fetchBotStatus();
         } else {
@@ -1132,6 +1321,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  async function liberarMatricula(numero) {
+    if (!confirm(`Liberar a matrícula ${numero} para ser utilizada novamente?`)) return;
+
+    try {
+      const res = await fetch(`/api/matriculas/${encodeURIComponent(numero)}/liberar`, { method: 'POST' });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast(`Matrícula ${numero} liberada para novo uso.`, 'success');
+        usosMatriculasCache = data.usos || {};
+        filterAndRenderMatriculas();
+        fetchBotStatus();
+      } else {
+        showToast(data.error || 'Erro ao liberar matrícula.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro ao liberar matrícula.', 'error');
+    }
+  }
+
+  // EVENTO: LIBERAR SELECIONADAS EM MASSA
+  const btnReleaseSelected = document.getElementById('btn-release-selected-matriculas');
+  if (btnReleaseSelected) {
+    btnReleaseSelected.addEventListener('click', async () => {
+      const items = Array.from(selectedMatriculasSet).filter(m => usosMatriculasCache[m]);
+
+      if (items.length === 0) {
+        showToast('Nenhuma matrícula utilizada entre as selecionadas.', 'error');
+        return;
+      }
+
+      if (!confirm(`Liberar ${items.length} matrículas para serem utilizadas novamente?`)) return;
+
+      try {
+        const res = await fetch('/api/matriculas/liberar-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matriculas: items })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showToast(`🔓 ${data.releasedCount} matrículas liberadas para novo uso.`, 'success');
+          usosMatriculasCache = data.usos || {};
+          filterAndRenderMatriculas();
+          fetchBotStatus();
+        } else {
+          showToast(data.error || 'Erro ao liberar matrículas em massa.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão com o servidor.', 'error');
+      }
+    });
+  }
+
   async function deleteMatricula(numero) {
     if (!confirm(`Deseja remover a matrícula ${numero} da base?`)) return;
 
@@ -1143,6 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`Matrícula ${numero} removida.`, 'success');
         allMatriculasCache = data.matriculas;
         selectedMatriculasSet.delete(numero);
+        delete usosMatriculasCache[numero];
         filterAndRenderMatriculas();
         fetchBotStatus();
       } else {
@@ -1185,6 +1430,243 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Disparar Mensagem Direta';
       }
+    });
+  }
+
+  // --- 7. LIMPEZA DE CARGOS EM MASSA ---
+  let cleanupMembersCache = [];      // todos os membros do servidor selecionado
+  let cleanupRolesCache = [];        // cargos do servidor selecionado
+  let cleanupSelectedSet = new Set(); // userIds marcados
+
+  const cleanupServerSelect = document.getElementById('cleanup-server-id');
+  const cleanupRoleSelect = document.getElementById('cleanup-role-id');
+  const cleanupSearch = document.getElementById('cleanup-search');
+
+  function populateCleanupServerSelect() {
+    if (!cleanupServerSelect) return;
+    const options = ['<option value="">Selecione o servidor do Stoat...</option>'];
+    (serversList || []).forEach(s => {
+      options.push(`<option value="${s.id}">${escapeHtml(s.name)} (ID: ${s.id})</option>`);
+    });
+    cleanupServerSelect.innerHTML = options.join('');
+  }
+
+  async function loadCleanupData(serverId) {
+    if (!serverId) return;
+
+    cleanupRoleSelect.innerHTML = '<option value="">Buscando cargos...</option>';
+    const tbody = document.getElementById('cleanup-table-body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 24px;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando membros do servidor...</td></tr>';
+
+    try {
+      const [rolesRes, membersRes] = await Promise.all([
+        fetch(`/api/stoat/servers/${serverId}/roles`),
+        fetch(`/api/stoat/servers/${serverId}/members`)
+      ]);
+
+      cleanupRolesCache = await rolesRes.json();
+      cleanupMembersCache = await membersRes.json();
+      cleanupSelectedSet.clear();
+
+      const options = ['<option value="">Selecione o cargo...</option>', '<option value="ALL_MEMBERS">👥 Todos os membros do servidor</option>'];
+      cleanupRolesCache.forEach(r => {
+        const total = cleanupMembersCache.filter(m => m.roles.includes(r.id)).length;
+        options.push(`<option value="${r.id}">${escapeHtml(r.name)} (${total} membros)</option>`);
+      });
+      cleanupRoleSelect.innerHTML = options.join('');
+
+      renderCleanupTable();
+    } catch (err) {
+      console.error('Erro ao carregar dados de limpeza:', err);
+      showToast('Erro ao carregar membros do servidor.', 'error');
+    }
+  }
+
+  function getCleanupFilteredMembers() {
+    const roleFilter = cleanupRoleSelect ? cleanupRoleSelect.value : '';
+    const query = cleanupSearch ? cleanupSearch.value.trim().toLowerCase() : '';
+
+    let list = [];
+    if (roleFilter === 'ALL_MEMBERS') {
+      list = cleanupMembersCache;
+    } else if (roleFilter) {
+      list = cleanupMembersCache.filter(m => m.roles.includes(roleFilter));
+    }
+
+    if (query) {
+      list = list.filter(m =>
+        m.username.toLowerCase().includes(query) ||
+        (m.nickname || '').toLowerCase().includes(query) ||
+        m.userId.toLowerCase().includes(query)
+      );
+    }
+    return list;
+  }
+
+  function roleNameById(roleId) {
+    return cleanupRolesCache.find(r => r.id === roleId)?.name || roleId;
+  }
+
+  function renderCleanupTable() {
+    const tbody = document.getElementById('cleanup-table-body');
+    const selectAll = document.getElementById('cleanup-select-all');
+    if (!tbody) return;
+
+    const roleFilter = cleanupRoleSelect ? cleanupRoleSelect.value : '';
+    const list = getCleanupFilteredMembers();
+
+    document.getElementById('cleanup-member-count').textContent = list.length;
+
+    if (!roleFilter) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 24px;">Selecione um cargo (ou "Todos os membros") para listar.</td></tr>';
+      updateCleanupButtons();
+      return;
+    }
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 24px;">Nenhum membro encontrado neste filtro.</td></tr>';
+      if (selectAll) selectAll.checked = false;
+      updateCleanupButtons();
+      return;
+    }
+
+    tbody.innerHTML = list.map(m => {
+      const isChecked = cleanupSelectedSet.has(m.userId) ? 'checked' : '';
+      const nameLine = m.nickname
+        ? `<strong>${escapeHtml(m.nickname)}</strong> <span style="color: var(--color-text-muted);">(${escapeHtml(m.username)})</span>`
+        : `<strong>${escapeHtml(m.username)}</strong>`;
+      const roleBadges = m.roles.length > 0
+        ? m.roles.map(rid => `<span class="badge badge-purple" style="margin: 2px;">${escapeHtml(roleNameById(rid))}</span>`).join(' ')
+        : '<span style="color: var(--color-text-muted); font-size: 0.8rem;">Sem cargos</span>';
+
+      return `
+        <tr>
+          <td style="text-align: center;">
+            <input type="checkbox" class="cleanup-member-checkbox" data-user-id="${escapeHtml(m.userId)}" ${isChecked}>
+          </td>
+          <td>${nameLine}</td>
+          <td style="font-family: monospace; font-size: 0.8rem;">${escapeHtml(m.userId)}</td>
+          <td>${roleBadges}</td>
+        </tr>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.cleanup-member-checkbox').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const uid = cb.getAttribute('data-user-id');
+        if (cb.checked) cleanupSelectedSet.add(uid);
+        else cleanupSelectedSet.delete(uid);
+        updateCleanupButtons();
+      });
+    });
+
+    if (selectAll) {
+      selectAll.onclick = () => {
+        const checkAll = selectAll.checked;
+        list.forEach(m => {
+          if (checkAll) cleanupSelectedSet.add(m.userId);
+          else cleanupSelectedSet.delete(m.userId);
+        });
+        document.querySelectorAll('.cleanup-member-checkbox').forEach(cb => { cb.checked = checkAll; });
+        updateCleanupButtons();
+      };
+    }
+
+    updateCleanupButtons();
+  }
+
+  function updateCleanupButtons() {
+    const roleFilter = cleanupRoleSelect ? cleanupRoleSelect.value : '';
+    const count = cleanupSelectedSet.size;
+
+    const countSpan = document.getElementById('cleanup-selected-count');
+    if (countSpan) countSpan.textContent = count;
+
+    const btnRole = document.getElementById('btn-cleanup-remove-role');
+    if (btnRole) {
+      // Só faz sentido "remover do cargo" quando um cargo específico está filtrado
+      btnRole.style.display = (count > 0 && roleFilter && roleFilter !== 'ALL_MEMBERS') ? 'inline-flex' : 'none';
+    }
+
+    const btnAll = document.getElementById('btn-cleanup-remove-all');
+    if (btnAll) {
+      btnAll.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  async function executeCleanup(roleIds, confirmText) {
+    const serverId = cleanupServerSelect.value;
+    const userIds = Array.from(cleanupSelectedSet);
+    if (!serverId || userIds.length === 0) return;
+
+    if (!confirm(confirmText)) return;
+
+    const btnRole = document.getElementById('btn-cleanup-remove-role');
+    const btnAll = document.getElementById('btn-cleanup-remove-all');
+    if (btnRole) btnRole.disabled = true;
+    if (btnAll) btnAll.disabled = true;
+    showToast(`⏳ Processando ${userIds.length} membro(s)... aguarde, há um intervalo entre as remoções.`, 'success');
+
+    try {
+      const res = await fetch('/api/roles/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serverId, userIds, roleIds })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const failMsg = data.failures.length > 0 ? ` — ${data.failures.length} falha(s), veja o log do bot` : '';
+        showToast(`🧹 Limpeza concluída: ${data.changedCount} membro(s) atualizados, ${data.unchangedCount} sem alteração${failMsg}.`, data.failures.length > 0 ? 'error' : 'success');
+        if (data.failures.length > 0) console.warn('Falhas na limpeza de cargos:', data.failures);
+
+        cleanupSelectedSet.clear();
+        await loadCleanupData(serverId); // recarrega os cargos reais pós-limpeza
+      } else {
+        showToast(data.error || 'Erro ao executar a limpeza.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de conexão com o servidor.', 'error');
+    } finally {
+      if (btnRole) btnRole.disabled = false;
+      if (btnAll) btnAll.disabled = false;
+    }
+  }
+
+  if (cleanupServerSelect) {
+    cleanupServerSelect.addEventListener('change', () => loadCleanupData(cleanupServerSelect.value));
+  }
+
+  if (cleanupRoleSelect) {
+    cleanupRoleSelect.addEventListener('change', () => {
+      cleanupSelectedSet.clear();
+      renderCleanupTable();
+    });
+  }
+
+  if (cleanupSearch) {
+    cleanupSearch.addEventListener('input', () => renderCleanupTable());
+  }
+
+  const btnCleanupRemoveRole = document.getElementById('btn-cleanup-remove-role');
+  if (btnCleanupRemoveRole) {
+    btnCleanupRemoveRole.addEventListener('click', () => {
+      const roleId = cleanupRoleSelect.value;
+      if (!roleId || roleId === 'ALL_MEMBERS') return;
+      executeCleanup(
+        [roleId],
+        `⚠️ Remover ${cleanupSelectedSet.size} membro(s) do cargo "${roleNameById(roleId)}"?\n\nEles perderão o acesso que este cargo concede.`
+      );
+    });
+  }
+
+  const btnCleanupRemoveAll = document.getElementById('btn-cleanup-remove-all');
+  if (btnCleanupRemoveAll) {
+    btnCleanupRemoveAll.addEventListener('click', () => {
+      executeCleanup(
+        'ALL',
+        `🚨 ATENÇÃO: Limpar TODOS os cargos de ${cleanupSelectedSet.size} membro(s)?\n\nEles voltarão ao estado de novo membro (sem nenhum acesso). Esta ação não pode ser desfeita em lote.`
+      );
     });
   }
 

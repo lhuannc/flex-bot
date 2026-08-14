@@ -10,6 +10,8 @@ export const usage = 'status';
 
 export async function execute({ message }) {
   const totalMatriculas = databaseService.getMatriculas().length;
+  const totalUsadas = Object.keys(databaseService.getUsos()).length;
+  const totalDisponiveis = Math.max(0, totalMatriculas - totalUsadas);
   const rules = ruleService.getRules();
   const totalRegras = rules.length;
   const regrasAtivas = rules.filter(r => r.active).length;
@@ -17,6 +19,7 @@ export async function execute({ message }) {
   const descricao = [
     '**🟢 Status:** Online e Operacional',
     `**📋 Matrículas Autorizadas:** ${totalMatriculas}`,
+    `**🔓 Disponíveis:** ${totalDisponiveis}  ·  **🔒 Já Utilizadas:** ${totalUsadas}`,
     `**⚙️ Regras de Canais:** ${regrasAtivas} / ${totalRegras}`,
     `**🌐 Dashboard Web:** http://localhost:${process.env.PORT || 3000}`
   ].join('\n');

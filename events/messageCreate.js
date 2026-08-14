@@ -2,6 +2,7 @@ import * as ivrService from '../services/ivrService.js';
 import * as ruleService from '../services/ruleService.js';
 import * as stoatService from '../services/stoatService.js';
 import * as dmTriggerService from '../services/dmTriggerService.js';
+import * as databaseService from '../services/databaseService.js';
 import { deleteMessage, scheduleDeletion } from '../services/messageUtils.js';
 
 export const name = 'messageCreate';
@@ -80,6 +81,18 @@ export async function execute(message, client) {
     const result = ruleService.evaluateRules(content, null, true, null);
 
     if (result.success) {
+      // Consome a matrícula antes de conceder o acesso (uso único)
+      const claim = databaseService.consumirMatricula(content, {
+        userId,
+        username: message.author?.username || '',
+        origin: 'DM'
+      });
+
+      if (!claim.success) {
+        await message.reply(`🚫 **A matrícula "${content}" já foi utilizada.**\nCada matrícula libera o acesso uma única vez. Procure o suporte caso precise de uma nova liberação.`);
+        return;
+      }
+
       const roleId = result.roleIdToAssign || process.env.ROLE_ID;
       const targetServerId = result.serverIdToAssign || process.env.SERVER_ID;
 
@@ -89,11 +102,15 @@ export async function execute(message, client) {
           const roleName = roleResult.roleName || 'Cargo de Acesso';
           await message.reply(`✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada com sucesso e seu cargo **${roleName}** foi atribuído.`);
         } else {
-          await message.reply(`✅ **Matrícula Validada!** Matrícula **${content}** confirmada (${roleResult.message}).`);
+          // Cargo não aplicado: devolve a matrícula para uma nova tentativa
+          databaseService.liberarMatricula(content);
+          await message.reply(`⚠️ **Matrícula válida, mas o cargo não pôde ser aplicado** (${roleResult.message}). Envie a matrícula novamente em instantes.`);
         }
       } else {
         await message.reply(`✅ **Acesso Liberado!** Sua matrícula **${content}** foi validada.`);
       }
+    } else if (result.alreadyUsed) {
+      await message.reply(`🚫 **A matrícula "${content}" já foi utilizada.**\nCada matrícula libera o acesso uma única vez. Procure o suporte caso precise de uma nova liberação.`);
     } else {
       // Se a matrícula não foi encontrada e o texto não era uma opção da URA, exibe mensagem clara + apresenta o menu da URA
       await message.reply(`❌ **Matrícula "${content}" não encontrada na base.**\nVerifique se os 8 números foram digitados corretamente.`);
@@ -122,8 +139,9 @@ export async function execute(message, client) {
     await stoatService.sendDMToStoatUser(message.author, formatted);
   }
 
-  // B. Avalia se o canal atual é um canal autorizado em alguma regra ativa de validação
-  const rules = ruleService.getRules().filter(r => r.active);
+  // B. Avalia se o canal atual é autorizado em alguma regra ativa de validação de matrícula.
+  //    Regras com QUANDO = "Novos membros" não escutam digitação — elas rodam no serverMemberJoin.
+  const rules = ruleService.getRules().filter(r => r.active && r.triggerType === 'MATRICULA');
   const channelRule = rules.find(r => {
     if (r.serverId && r.serverId !== serverId) return false;
     if (!r.allowedChannelId || r.allowedChannelId.trim() === '') return false;
@@ -142,22 +160,65 @@ export async function execute(message, client) {
   await deleteMessage(message, `matrícula digitada em #${channel.name}`);
 
   if (result.success) {
+    // Consome a matrícula antes de conceder o acesso (uso único)
+    const claim = databaseService.consumirMatricula(content, {
+      userId,
+      username: message.author?.username || '',
+      origin: `CANAL #${channel.name}`
+    });
+
+    if (!claim.success) {
+      const usedTemplate = channelRule.usedMessage || ruleService.DEFAULT_USED_MESSAGE;
+      const usedMsg = await channel.sendMessage(formatMessageTemplate(usedTemplate, userId, serverName)).catch(() => null);
+      scheduleDeletion(usedMsg, deleteDelay);
+      return;
+    }
+
+    const actions = channelRule.actions || {};
     const roleId = result.roleIdToAssign || process.env.ROLE_ID;
     const targetServerId = result.serverIdToAssign || serverId;
 
+    // ENTÃO 1: Atribuir cargo
     let roleName = '';
-    if (roleId) {
+    if (actions.assignRole !== false && roleId) {
       const roleResult = await stoatService.assignRoleToUser(userId, roleId, targetServerId);
       if (roleResult.success) {
         roleName = roleResult.roleName || 'Cargo';
+      } else {
+        // Cargo não aplicado: devolve a matrícula para uma nova tentativa
+        databaseService.liberarMatricula(content);
+        const failMsg = await channel.sendMessage(
+          `⚠️ <@${userId}> Sua matrícula é válida, mas não foi possível aplicar o cargo agora (${roleResult.message}). Tente novamente em instantes.`
+        ).catch(() => null);
+        scheduleDeletion(failMsg, deleteDelay);
+        return;
       }
     }
 
-    const rawSuccessMessage = channelRule.successMessage || '✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído.';
-    const formattedSuccess = formatMessageTemplate(rawSuccessMessage, userId, serverName, roleName);
+    // ENTÃO 2: Enviar mensagem no canal
+    if (actions.sendMessage !== false) {
+      const rawSuccessMessage = channelRule.successMessage || '✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído.';
+      const formattedSuccess = formatMessageTemplate(rawSuccessMessage, userId, serverName, roleName);
 
-    const replyMsg = await channel.sendMessage(formattedSuccess).catch(() => null);
-    scheduleDeletion(replyMsg, deleteDelay);
+      const replyMsg = await channel.sendMessage(formattedSuccess).catch(() => null);
+      scheduleDeletion(replyMsg, deleteDelay);
+    }
+
+    // ENTÃO 3: Enviar mensagem na DM do usuário validado
+    if (actions.sendDM && channelRule.dmMessage) {
+      const formattedDM = formatMessageTemplate(channelRule.dmMessage, userId, serverName, roleName);
+      const delivered = await stoatService.sendDMToStoatUser(message.author, formattedDM);
+      if (!delivered) {
+        console.warn(`[MessageCreate Canal] Regra "${channelRule.name}": não foi possível enviar a DM para ${message.author?.username} (DMs bloqueadas).`);
+      }
+    }
+  } else if (channelRule.actions?.sendMessage === false) {
+    // ENTÃO "Enviar mensagem" desligado: a regra não responde nem em caso de erro
+    return;
+  } else if (result.alreadyUsed) {
+    const usedTemplate = channelRule.usedMessage || ruleService.DEFAULT_USED_MESSAGE;
+    const usedMsg = await channel.sendMessage(formatMessageTemplate(usedTemplate, userId, serverName)).catch(() => null);
+    scheduleDeletion(usedMsg, deleteDelay);
   } else {
     const rawErrorMessage = channelRule.errorMessage || '❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados.';
     const formattedError = formatMessageTemplate(rawErrorMessage, userId, serverName);

@@ -241,6 +241,144 @@ export async function sendDMToStoatUser(user, content) {
 }
 
 /**
+ * Lista todos os membros humanos de um servidor com seus cargos.
+ * Usado pela área de Limpeza de Cargos do painel.
+ *
+ * Bots são excluídos da listagem por segurança: remover os cargos do próprio
+ * FlexBot derrubaria as permissões que ele precisa para operar.
+ *
+ * @param {string} [serverId]
+ * @returns {Promise<Array<{userId: string, username: string, displayName: string, nickname: string, roles: Array<string>}>>}
+ */
+export async function getServerMembers(serverId = null) {
+  const server = await getServer(serverId);
+  if (!server) return [];
+
+  try {
+    const { members } = await server.fetchMembers();
+
+    return members
+      .filter(member => !member.user?.bot)
+      .map(member => ({
+        userId: member.id.user,
+        username: member.user?.username || member.id.user,
+        displayName: member.user?.displayName || member.user?.username || member.id.user,
+        nickname: member.nickname || '',
+        roles: member.roles ?? []
+      }));
+  } catch (error) {
+    console.error(`[stoatService] Erro ao listar membros do servidor ${serverId}:`, describeError(error));
+    return [];
+  }
+}
+
+/**
+ * Remove cargos de um membro do servidor.
+ *
+ * A API do Stoat substitui a lista inteira de cargos no PATCH, então a
+ * remoção é feita reenviando a lista atual filtrada — mesma mecânica
+ * (invertida) do merge feito em `assignRoleToUser`.
+ *
+ * @param {string} userId - ID do usuário no Stoat
+ * @param {Array<string>|'ALL'} roleIds - Cargos a remover, ou 'ALL' para limpar todos
+ * @param {string} [serverId]
+ * @returns {Promise<{success: boolean, message: string, changed?: boolean, removedCount?: number}>}
+ */
+export async function removeRolesFromMember(userId, roleIds, serverId = null) {
+  if (!stoatClient) {
+    return { success: false, message: 'Cliente do Stoat não inicializado.' };
+  }
+
+  try {
+    const server = await getServer(serverId);
+    if (!server) {
+      return { success: false, message: 'Servidor não foi encontrado pelo bot.' };
+    }
+
+    const member = await server.fetchMember(userId).catch(() => null);
+    if (!member) {
+      return { success: false, message: `Membro ${userId} não encontrado no servidor.` };
+    }
+
+    const currentRoles = member.roles ?? [];
+    const newRoles = roleIds === 'ALL'
+      ? []
+      : currentRoles.filter(r => !roleIds.includes(r));
+
+    if (newRoles.length === currentRoles.length) {
+      return { success: true, message: 'O membro não possuía os cargos selecionados.', changed: false, removedCount: 0 };
+    }
+
+    await member.edit({ roles: newRoles });
+
+    return {
+      success: true,
+      message: `${currentRoles.length - newRoles.length} cargo(s) removido(s).`,
+      changed: true,
+      removedCount: currentRoles.length - newRoles.length
+    };
+  } catch (error) {
+    const description = describeError(error);
+
+    if (description.includes('MissingPermission')) {
+      return { success: false, message: 'O bot não tem permissão "Atribuir Cargos" ou seu cargo está abaixo do cargo alvo na hierarquia.' };
+    }
+
+    console.error(`[stoatService] Erro ao remover cargos do membro ${userId}: ${description}`);
+    return { success: false, message: `Falha ao remover cargos: ${description}` };
+  }
+}
+
+/**
+ * Envia uma mensagem em um canal do servidor a partir do ID do canal.
+ *
+ * Usado pelo gatilho de Boas-Vindas em canal (`serverMemberJoin`) — diferente
+ * da DM, aqui a mensagem fica visível para todos os membros do canal.
+ *
+ * @param {string} channelId - ID do canal no Stoat
+ * @param {string} content - Texto da mensagem
+ * @returns {Promise<{success: boolean, message: string, sentMessage?: import('stoat.js').Message}>}
+ */
+export async function sendMessageToChannel(channelId, content) {
+  if (!stoatClient) {
+    return { success: false, message: 'Cliente do Stoat não inicializado.' };
+  }
+
+  if (!channelId) {
+    return { success: false, message: 'Nenhum canal foi configurado para a mensagem.' };
+  }
+
+  if (!content) {
+    return { success: false, message: 'Conteúdo da mensagem está vazio.' };
+  }
+
+  try {
+    // O canal já costuma estar no cache; o fetch cobre o caso de cache frio
+    const channel = stoatClient.channels.get(channelId) ?? await stoatClient.channels.fetch(channelId);
+    if (!channel) {
+      return { success: false, message: `Canal com ID ${channelId} não foi encontrado.` };
+    }
+
+    // A mensagem enviada é devolvida para permitir auto-deleção pelo chamador
+    const sentMessage = await channel.sendMessage(content);
+    return { success: true, message: `Mensagem enviada no canal #${channel.name || channelId}.`, sentMessage };
+  } catch (error) {
+    const description = describeError(error);
+
+    if (description.includes('MissingPermission')) {
+      console.error(
+        `[stoatService] Não foi possível postar no canal ${channelId}: o bot não possui a permissão ` +
+        `"Enviar Mensagens" (SendMessage) neste canal. Detalhe da API: ${description}`
+      );
+      return { success: false, message: 'O bot não tem permissão "Enviar Mensagens" neste canal.' };
+    }
+
+    console.error(`[stoatService] Erro ao enviar mensagem no canal ${channelId}: ${description}`);
+    return { success: false, message: `Falha ao enviar mensagem no canal: ${description}` };
+  }
+}
+
+/**
  * Envia uma mensagem direta (DM) para um usuário a partir do seu ID
  * @param {string} userId - ID do usuário no Stoat
  * @param {string} messageContent - Texto da mensagem

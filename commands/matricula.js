@@ -1,5 +1,6 @@
 import * as ruleService from '../services/ruleService.js';
 import * as stoatService from '../services/stoatService.js';
+import * as databaseService from '../services/databaseService.js';
 import { deleteMessage, scheduleDeletion } from '../services/messageUtils.js';
 
 /**
@@ -59,6 +60,21 @@ export async function execute({ message, args }) {
   }
 
   if (result.success) {
+    // Consome a matrícula: a partir daqui ela não pode ser usada por mais ninguém
+    const claim = databaseService.consumirMatricula(numero, {
+      userId,
+      username: message.author?.username || '',
+      origin: 'COMANDO'
+    });
+
+    if (!claim.success) {
+      const usedTemplate = result.matchedRule?.usedMessage || ruleService.DEFAULT_USED_MESSAGE;
+      const formattedUsed = formatMessageTemplate(usedTemplate, userId, serverName);
+      const sentUsed = await channel?.sendMessage(formattedUsed).catch(() => null);
+      if (!isDM) scheduleDeletion(sentUsed, deleteDelay);
+      return;
+    }
+
     const roleId = result.roleIdToAssign || process.env.ROLE_ID;
     const targetServerId = result.serverIdToAssign || serverId || process.env.SERVER_ID;
 
@@ -67,12 +83,30 @@ export async function execute({ message, args }) {
       const roleResult = await stoatService.assignRoleToUser(userId, roleId, targetServerId);
       if (roleResult.success) {
         roleName = roleResult.roleName || 'Cargo';
+      } else {
+        // O cargo não foi aplicado: devolve a matrícula para que o usuário possa tentar novamente
+        databaseService.liberarMatricula(numero);
+        const sentFail = await channel?.sendMessage(
+          `⚠️ <@${userId}> Sua matrícula é válida, mas não foi possível aplicar o cargo agora (${roleResult.message}). Tente novamente em instantes.`
+        ).catch(() => null);
+        if (!isDM) scheduleDeletion(sentFail, deleteDelay);
+        return;
       }
     }
 
-    const formattedSuccess = formatMessageTemplate(result.message, userId, serverName, roleName);
-    const sent = await channel?.sendMessage(formattedSuccess).catch(() => null);
-    if (!isDM) scheduleDeletion(sent, deleteDelay);
+    const actions = result.matchedRule?.actions || {};
+
+    if (actions.sendMessage !== false) {
+      const formattedSuccess = formatMessageTemplate(result.message, userId, serverName, roleName);
+      const sent = await channel?.sendMessage(formattedSuccess).catch(() => null);
+      if (!isDM) scheduleDeletion(sent, deleteDelay);
+    }
+
+    // ENTÃO: Enviar mensagem na DM (se configurado na regra e ainda não estamos na DM)
+    if (actions.sendDM && result.matchedRule?.dmMessage && !isDM) {
+      const formattedDM = formatMessageTemplate(result.matchedRule.dmMessage, userId, serverName, roleName);
+      await stoatService.sendDMToStoatUser(message.author, formattedDM);
+    }
     return;
   }
 

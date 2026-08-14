@@ -39,6 +39,9 @@
         <button class="nav-btn" data-tab="database-tab" id="btn-tab-database">
           <i class="fa-solid fa-database"></i> Base de Matrículas
         </button>
+        <button class="nav-btn" data-tab="cleanup-tab" id="btn-tab-cleanup">
+          <i class="fa-solid fa-broom"></i> Limpeza de Cargos
+        </button>
         <button class="nav-btn" data-tab="dm-tab" id="btn-tab-dm">
           <i class="fa-solid fa-envelope-open-text"></i> DM Avulsa
         </button>
@@ -84,8 +87,8 @@
           <div class="wizard-step-item" data-step="2" id="channel-step-indicator-2">
             <div class="step-badge">2</div>
             <div class="step-info">
-              <span class="step-title">Cargo & Atribuição</span>
-              <span class="step-sub">Permissões no Stoat</span>
+              <span class="step-title">Quando</span>
+              <span class="step-sub">Gatilho da Regra</span>
             </div>
           </div>
           <div class="step-connector"></div>
@@ -93,8 +96,8 @@
           <div class="wizard-step-item" data-step="3" id="channel-step-indicator-3">
             <div class="step-badge">3</div>
             <div class="step-info">
-              <span class="step-title">Deleção & Respostas</span>
-              <span class="step-sub">Tempo & Mensagens</span>
+              <span class="step-title">Então</span>
+              <span class="step-sub">Consequências</span>
             </div>
           </div>
         </div>
@@ -137,7 +140,7 @@
                       <select id="channel-rule-channel-id" required>
                         <option value="">Selecione o servidor primeiro...</option>
                       </select>
-                      <small>O FlexBot escutará a digitação de matrículas exclusivamente neste canal.</small>
+                      <small id="channel-rule-channel-help">O FlexBot escutará a digitação de matrículas exclusivamente neste canal.</small>
                     </div>
                   </div>
                 </div>
@@ -147,29 +150,37 @@
             <div class="wizard-actions">
               <div></div>
               <button type="button" class="btn btn-primary btn-channel-next" data-next="2">
-                Próximo Passo: Cargo & Atribuição <i class="fa-solid fa-arrow-right"></i>
+                Próximo Passo: Quando <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </div>
 
-          <!-- PASSO 2: CARGO A ATRIBUIR -->
+          <!-- PASSO 2: QUANDO (GATILHO DA REGRA) -->
           <div class="wizard-panel" id="channel-wizard-step-2">
             <div class="content-card">
               <div class="card-header">
                 <div>
-                  <h3><i class="fa-solid fa-user-shield" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Cargo a Atribuir no Stoat<span class="triangulo-ponto"></span></h3>
-                  <p>Selecione a Role (Cargo) que o FlexBot atribuirá ao usuário quando a matrícula for validada com sucesso.</p>
+                  <h3><i class="fa-solid fa-bolt" style="color: var(--color-gradient-blue-mid);"></i> Passo 2: Quando — O que dispara esta regra<span class="triangulo-ponto"></span></h3>
+                  <p>Escolha o evento que aciona a regra. Cada regra tem um gatilho único — para cobrir os dois eventos, crie duas regras.</p>
                 </div>
               </div>
               <div class="card-body">
                 <div class="form-grid-page">
-                  <div class="form-group">
-                    <label for="channel-rule-role-id">Cargo a Atribuir (Role) *</label>
-                    <select id="channel-rule-role-id" required>
-                      <option value="">Selecione o servidor no Passo 1 primeiro...</option>
-                    </select>
-                    <small>Este cargo concede o acesso ao servidor do Stoat.</small>
-                  </div>
+                  <label class="trigger-option" for="channel-trigger-matricula">
+                    <input type="radio" name="channel-rule-trigger" id="channel-trigger-matricula" value="MATRICULA" checked>
+                    <div>
+                      <span class="trigger-title">🎓 Validar código de acesso "matrícula"</span>
+                      <span class="trigger-desc">Dispara quando alguém digita uma matrícula no canal escolhido no Passo 1. A matrícula é conferida na base oficial e só pode ser usada uma vez.</span>
+                    </div>
+                  </label>
+
+                  <label class="trigger-option" for="channel-trigger-member-join">
+                    <input type="radio" name="channel-rule-trigger" id="channel-trigger-member-join" value="MEMBER_JOIN">
+                    <div>
+                      <span class="trigger-title">👋 Novos membros do servidor</span>
+                      <span class="trigger-desc">Dispara quando um novo integrante entra no servidor. Não há digitação nem validação — o canal do Passo 1 é onde a mensagem de boas-vindas será publicada.</span>
+                    </div>
+                  </label>
                 </div>
               </div>
             </div>
@@ -179,37 +190,98 @@
                 <i class="fa-solid fa-arrow-left"></i> Passo Anterior
               </button>
               <button type="button" class="btn btn-primary btn-channel-next" data-next="3">
-                Próximo Passo: Deleção & Respostas <i class="fa-solid fa-arrow-right"></i>
+                Próximo Passo: Então <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </div>
 
-          <!-- PASSO 3: MENSAGENS E TEMPO DE DELEÇÃO -->
+          <!-- PASSO 3: ENTÃO (CONSEQUÊNCIAS) -->
           <div class="wizard-panel" id="channel-wizard-step-3">
             <div class="content-card">
               <div class="card-header">
                 <div>
-                  <h3><i class="fa-solid fa-clock-rotate-left" style="color: var(--color-gradient-blue-mid);"></i> Passo 3: Tempo de Deleção e Mensagens de Resposta<span class="triangulo-ponto"></span></h3>
-                  <p>Configure o tempo para apagar a mensagem no canal e personalize os textos de sucesso e erro.</p>
+                  <h3><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--color-gradient-blue-mid);"></i> Passo 3: Então — O que o bot faz<span class="triangulo-ponto"></span></h3>
+                  <p>Escolha uma ou as duas consequências. Elas são combináveis e acontecem na ordem abaixo.</p>
                 </div>
               </div>
               <div class="card-body">
                 <div class="form-grid-page">
-                  <div class="form-group">
-                    <label for="channel-rule-delete-delay">Tempo para Auto-Deletar a Resposta no Canal (em segundos) *</label>
-                    <input type="number" id="channel-rule-delete-delay" min="0" max="3600" value="10" required placeholder="Ex: 10 (ou 0 para permanente)">
-                    <small>Digite <strong>0</strong> se desejar que as mensagens de confirmação permaneçam no canal.</small>
+                  <!-- ENTÃO 1: ATRIBUIR CARGO -->
+                  <div class="action-block">
+                    <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                      <label class="switch">
+                        <input type="checkbox" id="channel-action-assign-role" checked>
+                        <span class="slider round"></span>
+                      </label>
+                      <span style="font-weight: 800; color: var(--color-primary);">🛡️ Atribuir cargo</span>
+                    </div>
+                    <div id="channel-action-role-fields">
+                      <div class="form-group">
+                        <label for="channel-rule-role-id">Cargo a Atribuir (Role)</label>
+                        <select id="channel-rule-role-id">
+                          <option value="">Selecione o servidor no Passo 1 primeiro...</option>
+                        </select>
+                        <small>Este cargo concede o acesso ao servidor do Stoat.</small>
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="form-group">
-                    <label for="channel-rule-success-msg">Mensagem de Sucesso no Canal *</label>
-                    <textarea id="channel-rule-success-msg" rows="2" required placeholder="✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído."></textarea>
-                    <small>Variáveis disponíveis: <code>{user}</code> menciona o usuário, <code>{role}</code> exibe o cargo e <code>{server}</code> o nome do servidor.</small>
+                  <!-- ENTÃO 2: ENVIAR MENSAGEM -->
+                  <div class="action-block">
+                    <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                      <label class="switch">
+                        <input type="checkbox" id="channel-action-send-message" checked>
+                        <span class="slider round"></span>
+                      </label>
+                      <span style="font-weight: 800; color: var(--color-primary);">💬 Enviar mensagem</span>
+                    </div>
+
+                    <div id="channel-action-message-fields">
+                      <div class="form-group">
+                        <label for="channel-rule-delete-delay">Tempo para Auto-Deletar a Mensagem no Canal (em segundos)</label>
+                        <input type="number" id="channel-rule-delete-delay" min="0" max="3600" value="10" placeholder="Ex: 10 (ou 0 para permanente)">
+                        <small>Digite <strong>0</strong> se desejar que a mensagem permaneça no canal.</small>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="channel-rule-success-msg" id="label-channel-success-msg">Mensagem de Sucesso no Canal</label>
+                        <textarea id="channel-rule-success-msg" rows="2" placeholder="✅ **Acesso Liberado!** {user}, sua matrícula foi validada e seu cargo {role} foi atribuído."></textarea>
+                        <small>Variáveis disponíveis: <code>{user}</code> menciona o usuário, <code>{role}</code> exibe o cargo e <code>{server}</code> o nome do servidor.</small>
+                      </div>
+
+                      <!-- Mensagens de falha só existem quando o gatilho é validação de matrícula -->
+                      <div id="channel-matricula-messages">
+                        <div class="form-group">
+                          <label for="channel-rule-error-msg">Mensagem de Erro no Canal</label>
+                          <textarea id="channel-rule-error-msg" rows="2" placeholder="❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                          <label for="channel-rule-used-msg">Mensagem de Matrícula Já Utilizada</label>
+                          <textarea id="channel-rule-used-msg" rows="2" placeholder="🚫 {user}: **Esta matrícula já foi utilizada.** Cada matrícula libera o acesso uma única vez."></textarea>
+                          <small>Cada matrícula da base só pode liberar acesso <strong>uma única vez</strong>. Esta é a resposta enviada quando alguém tenta reutilizá-la.</small>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="form-group">
-                    <label for="channel-rule-error-msg">Mensagem de Erro no Canal *</label>
-                    <textarea id="channel-rule-error-msg" rows="2" required placeholder="❌ {user}: **Matrícula não encontrada.** Verifique os 8 números digitados."></textarea>
+                  <!-- ENTÃO 3: ENVIAR MENSAGEM NA DM -->
+                  <div class="action-block">
+                    <div class="form-group checkbox-group" style="margin-bottom: 12px;">
+                      <label class="switch">
+                        <input type="checkbox" id="channel-action-send-dm">
+                        <span class="slider round"></span>
+                      </label>
+                      <span style="font-weight: 800; color: var(--color-primary);">📩 Enviar mensagem na DM do usuário</span>
+                    </div>
+
+                    <div id="channel-action-dm-fields">
+                      <div class="form-group">
+                        <label for="channel-rule-dm-msg" id="label-channel-dm-msg">Mensagem Privada (DM)</label>
+                        <textarea id="channel-rule-dm-msg" rows="2" placeholder="📩 Olá {user}! Sua matrícula foi validada e o cargo {role} foi liberado no servidor {server}."></textarea>
+                        <small>Enviada no privado do usuário. Variáveis: <code>{user}</code>, <code>{role}</code> e <code>{server}</code>. Se o usuário bloquear DMs, a falha fica registrada no log sem afetar as demais consequências.</small>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="form-group checkbox-group">
@@ -473,6 +545,9 @@
                 <button type="button" class="btn btn-danger" id="btn-delete-selected-matriculas" style="display: none;">
                   <i class="fa-solid fa-trash"></i> Excluir Selecionadas (<span id="selected-matriculas-count">0</span>)
                 </button>
+                <button type="button" class="btn btn-outline" id="btn-release-selected-matriculas" style="display: none;">
+                  <i class="fa-solid fa-lock-open"></i> Liberar Selecionadas (0)
+                </button>
                 <button type="button" class="btn btn-outline" id="btn-delete-filtered-matriculas" style="border-color: #dc2626; color: #dc2626;">
                   <i class="fa-solid fa-filter-circle-xmark"></i> Excluir Todas as Filtradas
                 </button>
@@ -494,7 +569,7 @@
                     </th>
                     <th>#</th>
                     <th>Matrícula Autorizada</th>
-                    <th>Status</th>
+                    <th>Status de Uso</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -506,7 +581,76 @@
       </section>
 
       <!-- ===================================================================
-           TELA 4: DM AVULSA (ABA INDEPENDENTE NO MENU LATERAL)
+           TELA 4: LIMPEZA DE CARGOS EM MASSA
+           =================================================================== -->
+      <section class="tab-content" id="cleanup-tab">
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-broom"></i> Limpeza de Cargos em Massa <span class="triangulo-ponto"></span></h3>
+              <p>Visualize os cargos do servidor e remova um ou mais membros deles de uma só vez. Bots não aparecem na listagem por segurança.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-row" style="margin-bottom: 18px;">
+              <div class="form-group">
+                <label for="cleanup-server-id">Servidor do Stoat *</label>
+                <select id="cleanup-server-id">
+                  <option value="">Carregando servidores...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="cleanup-role-id">Cargo para Filtrar *</label>
+                <select id="cleanup-role-id">
+                  <option value="">Selecione o servidor primeiro...</option>
+                </select>
+                <small>Escolha um cargo para listar seus membros, ou "Todos os membros" para ver o servidor inteiro.</small>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; flex-wrap: wrap;">
+              <h4 style="color: var(--color-primary); font-family: var(--font-heading); font-size: 1.05rem;">
+                <i class="fa-solid fa-users"></i> Membros (<span id="cleanup-member-count">0</span>)
+              </h4>
+
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-danger" id="btn-cleanup-remove-role" style="display: none;">
+                  <i class="fa-solid fa-user-minus"></i> Remover Selecionados do Cargo (<span id="cleanup-selected-count">0</span>)
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-cleanup-remove-all" style="display: none; border-color: #dc2626; color: #dc2626;">
+                  <i class="fa-solid fa-eraser"></i> Limpar TODOS os Cargos dos Selecionados
+                </button>
+
+                <div style="position: relative; min-width: 240px;">
+                  <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gradient-blue-mid);"></i>
+                  <input type="text" id="cleanup-search" placeholder="Pesquisar membro..." style="padding-left: 40px; background: var(--color-white);">
+                </div>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px; text-align: center;">
+                      <input type="checkbox" id="cleanup-select-all" title="Selecionar todos os visíveis">
+                    </th>
+                    <th>Membro</th>
+                    <th>ID do Usuário</th>
+                    <th>Cargos Atuais</th>
+                  </tr>
+                </thead>
+                <tbody id="cleanup-table-body">
+                  <tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 24px;">Selecione um servidor e um cargo para listar os membros.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TELA 5: DM AVULSA (ABA INDEPENDENTE NO MENU LATERAL)
            =================================================================== -->
       <section class="tab-content" id="dm-tab">
         <div class="content-card">
