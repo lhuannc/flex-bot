@@ -4,7 +4,11 @@ services:
     container_name: flex-bot-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Bind apenas em localhost por padrão: o Dashboard não possui autenticação,
+      # então ele nunca deve escutar em interface pública. Na VM, o acesso externo
+      # é feito via Tailscale Serve (https://<maquina>.ts.net -> 127.0.0.1:3000).
+      # Para expor em outra interface, defina BIND_ADDRESS no .env (ex: 0.0.0.0).
+      - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
     env_file:
       - .env
     volumes:

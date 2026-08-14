@@ -56,6 +56,45 @@ Para utilizar o Render **sem pagar absolutamente nada** (sem comprar discos pago
 
 ---
 
+## 🖥️ 2.5 VM Própria (Ubuntu 22.04 + Docker + Tailscale) — Instalação Automatizada
+
+Para rodar em uma VM Linux privada acessada pela rede **Tailscale**, use o instalador pronto:
+
+```bash
+# Opção A — a partir da pasta do projeto já copiada para a VM (scp/rsync):
+cd ~/flex-bot
+bash scripts/setup-vm.sh
+
+# Opção B — clonando do GitHub direto na VM:
+curl -fsSL https://raw.githubusercontent.com/lhuannc/flex-bot/main/scripts/setup-vm.sh -o setup-vm.sh
+bash setup-vm.sh
+```
+
+O script [`scripts/setup-vm.sh`](../scripts/setup-vm.sh) é **idempotente** (pode rodar de novo sem quebrar nada) e faz, em ordem:
+
+1. Valida o Ubuntu 22.04+ e instala dependências base (`curl`, `git`, `ca-certificates`);
+2. Instala **Docker Engine + Compose plugin** se ausentes e habilita o serviço;
+3. Usa a pasta atual do projeto ou clona o repositório;
+4. Valida o `.env` — se o `STOAT_TOKEN` estiver ausente, cria o arquivo a partir do `.env.example`, orienta o preenchimento e para;
+5. Sobe o container (`docker compose up -d --build`) com o volume `./data` persistente;
+6. Aguarda o health check do Dashboard e confere se o bot conectou ao Stoat;
+7. Publica o Dashboard na sua rede Tailscale via **Tailscale Serve** → `https://<sua-maquina>.ts.net`.
+
+### 🔒 Segurança do Dashboard na VM
+
+O Dashboard **não possui autenticação**, então ele nunca deve escutar em interface pública — e o Docker **ignora o firewall UFW** em portas publicadas, o que torna esse erro fácil de cometer. Por isso o `docker-compose.yml` faz bind apenas em `127.0.0.1`:
+
+```yaml
+ports:
+  - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
+```
+
+O acesso externo acontece **exclusivamente** pela rede privada do Tailscale (`tailscale serve` faz o proxy HTTPS para o localhost da VM). Para expor em outra interface conscientemente, defina `BIND_ADDRESS` no `.env`.
+
+> 💡 Requisitos do Tailscale Serve: **MagicDNS** e **HTTPS Certificates** habilitados no painel de administração do tailnet (Configurações → DNS).
+
+---
+
 ## 🔍 3. Validando o Deploy
 
 Nos logs do serviço, procure por:
