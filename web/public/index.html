@@ -54,6 +54,17 @@
           <span class="status-sub" id="bot-server">Buscando servidor...</span>
         </div>
       </div>
+
+      <!-- Sessão autenticada (exibido apenas quando o login está ativo) -->
+      <div class="session-card" id="session-card" style="display: none;">
+        <div class="session-info">
+          <i class="fa-solid fa-circle-user"></i>
+          <span id="session-email" title="">—</span>
+        </div>
+        <a href="/auth/logout" class="session-logout" title="Encerrar sessão">
+          <i class="fa-solid fa-right-from-bracket"></i> Sair
+        </a>
+      </div>
     </aside>
 
     <!-- Main Content Area -->

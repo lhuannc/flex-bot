@@ -192,6 +192,26 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Dados do FlexBot e integrações atualizados!', 'success');
   });
 
+  // --- 0. SESSÃO AUTENTICADA ---
+  (async function fetchSession() {
+    try {
+      const res = await fetch('/auth/me');
+      const data = await res.json();
+
+      if (data.authEnabled && data.email) {
+        const card = document.getElementById('session-card');
+        const label = document.getElementById('session-email');
+        if (label) {
+          label.textContent = data.email;
+          label.setAttribute('title', data.email);
+        }
+        if (card) card.style.display = 'block';
+      }
+    } catch (err) {
+      console.error('Erro ao consultar a sessão:', err);
+    }
+  })();
+
   // --- 1. FETCH STATUS ---
   async function fetchBotStatus() {
     try {

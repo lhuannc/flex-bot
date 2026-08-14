@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+
+# Dados de execução (matrículas, usos, regras) — vivem no volume da VM, não no git
+data/*.json
+!data/.gitkeep

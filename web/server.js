@@ -1,16 +1,173 @@
 import express from 'express';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import cors from 'cors';
 import * as databaseService from '../services/databaseService.js';
 import * as ruleService from '../services/ruleService.js';
 import * as stoatService from '../services/stoatService.js';
 import * as dmTriggerService from '../services/dmTriggerService.js';
 import * as dmRuleService from '../services/dmRuleService.js';
+import * as authService from '../services/authService.js';
 
 export function createWebServer() {
   const app = express();
+
+  // O Tailscale Serve termina o TLS e repassa por HTTP local:
+  // sem confiar no proxy, o cookie de sessão não receberia a flag Secure.
+  app.set('trust proxy', true);
+
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
+
+  // =========================================================================
+  // AUTENTICAÇÃO COM GOOGLE (ativa somente se GOOGLE_CLIENT_ID/SECRET existirem)
+  // =========================================================================
+
+  /**
+   * Descobre a URL base desta requisição para montar o redirect_uri do OAuth.
+   * O Host é validado contra localhost e PUBLIC_URL — aceitar qualquer Host
+   * permitiria que um cabeçalho forjado desviasse o código de autorização.
+   */
+  function resolveBaseUrl(req) {
+    const host = (req.get('host') || '').toLowerCase();
+    const publicUrl = (process.env.PUBLIC_URL || '').trim().replace(/\/$/, '');
+
+    if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) {
+      return `http://${host}`;
+    }
+
+    if (publicUrl) {
+      try {
+        if (new URL(publicUrl).host.toLowerCase() === host) return publicUrl;
+      } catch {
+        console.error(`[Auth] PUBLIC_URL inválida: "${publicUrl}"`);
+      }
+    }
+
+    return null;
+  }
+
+  function redirectUriFor(req) {
+    const base = resolveBaseUrl(req);
+    return base ? `${base}/auth/callback` : null;
+  }
+
+  // Disponibiliza os cookies e a sessão já validada em todas as rotas
+  app.use((req, res, next) => {
+    req.cookies = authService.parseCookies(req.get('cookie'));
+    req.session = authService.isAuthEnabled()
+      ? authService.verifySessionToken(req.cookies[authService.SESSION_COOKIE])
+      : { email: 'auth-desativada' };
+    next();
+  });
+
+  // Início do fluxo: leva o usuário ao consentimento do Google
+  app.get('/auth/login', (req, res) => {
+    if (!authService.isAuthEnabled()) return res.redirect('/');
+
+    const redirectUri = redirectUriFor(req);
+    if (!redirectUri) {
+      return res.status(400).send('Host não autorizado. Configure PUBLIC_URL no .env com o endereço usado para acessar o Dashboard.');
+    }
+
+    const state = crypto.randomBytes(16).toString('hex');
+    res.setHeader('Set-Cookie', authService.serializeCookie(authService.STATE_COOKIE, state, {
+      maxAge: 600,
+      secure: authService.isSecureRequest(req)
+    }));
+
+    res.redirect(authService.buildGoogleAuthUrl(redirectUri, state));
+  });
+
+  // Retorno do Google: valida o state, troca o código e confere a allowlist
+  app.get('/auth/callback', async (req, res) => {
+    if (!authService.isAuthEnabled()) return res.redirect('/');
+
+    const { code, state, error } = req.query;
+    const seguro = authService.isSecureRequest(req);
+
+    // Expira o cookie de state — ele serve para um único fluxo
+    const limparState = authService.serializeCookie(authService.STATE_COOKIE, '', { maxAge: 0, secure: seguro });
+
+    if (error) {
+      res.setHeader('Set-Cookie', limparState);
+      return res.redirect('/login.html?erro=cancelado');
+    }
+
+    const stateEsperado = req.cookies[authService.STATE_COOKIE];
+    if (!state || !stateEsperado || state !== stateEsperado) {
+      res.setHeader('Set-Cookie', limparState);
+      console.warn('[Auth] Callback recusado: parâmetro state inválido (possível CSRF).');
+      return res.redirect('/login.html?erro=state');
+    }
+
+    const redirectUri = redirectUriFor(req);
+    if (!code || !redirectUri) {
+      res.setHeader('Set-Cookie', limparState);
+      return res.redirect('/login.html?erro=codigo');
+    }
+
+    const identidade = await authService.exchangeCodeForIdentity(code, redirectUri);
+
+    if (!identidade.success) {
+      res.setHeader('Set-Cookie', limparState);
+      console.warn(`[Auth] Falha na autenticação: ${identidade.message}`);
+      return res.redirect('/login.html?erro=google');
+    }
+
+    // Só e-mails verificados pelo Google e presentes na allowlist entram
+    if (!identidade.emailVerified) {
+      res.setHeader('Set-Cookie', limparState);
+      return res.redirect('/login.html?erro=naoverificado');
+    }
+
+    if (!authService.isEmailAllowed(identidade.email)) {
+      res.setHeader('Set-Cookie', limparState);
+      console.warn(`[Auth] Acesso NEGADO para "${identidade.email}" (fora da allowlist).`);
+      return res.redirect('/login.html?erro=naoautorizado');
+    }
+
+    const token = authService.createSessionToken(identidade.email);
+    res.setHeader('Set-Cookie', [
+      limparState,
+      authService.serializeCookie(authService.SESSION_COOKIE, token, { maxAge: 12 * 60 * 60, secure: seguro })
+    ]);
+
+    console.log(`[Auth] Acesso liberado para ${identidade.email}.`);
+    res.redirect('/');
+  });
+
+  app.get('/auth/logout', (req, res) => {
+    res.setHeader('Set-Cookie', authService.serializeCookie(authService.SESSION_COOKIE, '', {
+      maxAge: 0,
+      secure: authService.isSecureRequest(req)
+    }));
+    res.redirect('/login.html');
+  });
+
+  // Identidade da sessão atual (usada pelo cabeçalho do Dashboard)
+  app.get('/auth/me', (req, res) => {
+    res.json({
+      authEnabled: authService.isAuthEnabled(),
+      authenticated: Boolean(req.session),
+      email: req.session?.email || null
+    });
+  });
+
+  // Barreira: tudo que não for público exige sessão válida
+  const ROTAS_PUBLICAS = ['/login.html', '/style.css', '/favicon.ico'];
+
+  app.use((req, res, next) => {
+    if (!authService.isAuthEnabled()) return next();
+    if (req.session) return next();
+    if (req.path.startsWith('/auth/') || ROTAS_PUBLICAS.includes(req.path)) return next();
+
+    // API responde 401 em JSON; navegação vai para a tela de login
+    if (req.path.startsWith('/api/')) {
+      return res.status(401).json({ error: 'Não autenticado.', loginUrl: '/auth/login' });
+    }
+    return res.redirect('/login.html');
+  });
 
   app.use(express.static(path.join(import.meta.dirname, 'public')));
 

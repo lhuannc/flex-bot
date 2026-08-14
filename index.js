@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { Client } from 'stoat.js';
 import { createWebServer } from './web/server.js';
 import * as stoatService from './services/stoatService.js';
+import * as authService from './services/authService.js';
 
 // 1. Criação do cliente do Stoat
 // O baseURL permite apontar tanto para a instância oficial (https://stoat.chat/api)
@@ -77,6 +78,19 @@ const app = createWebServer();
 app.listen(PORT, () => {
   console.log(`\n==================================================`);
   console.log(`🚀 Dashboard Web rodando em: http://localhost:${PORT}`);
+
+  if (authService.isAuthEnabled()) {
+    const permitidos = authService.getAllowedEmails();
+    if (permitidos.length > 0) {
+      console.log(`🔐 Login com Google ATIVO — ${permitidos.length} e-mail(s) autorizado(s): ${permitidos.join(', ')}`);
+    } else {
+      console.warn('⚠️  Login com Google ativo, porém ALLOWED_EMAILS está VAZIO — ninguém conseguirá entrar.');
+    }
+  } else {
+    console.warn('⚠️  Dashboard SEM AUTENTICAÇÃO: qualquer um que alcançar esta porta tem acesso total.');
+    console.warn('    Configure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e ALLOWED_EMAILS no .env.');
+  }
+
   console.log(`==================================================\n`);
 });
 

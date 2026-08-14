@@ -769,6 +769,44 @@ input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:foc
 input:checked + .slider { background-color: var(--color-primary); }
 input:checked + .slider:before { transform: translateX(20px); }
 
+/* CARTÃO DE SESSÃO AUTENTICADA (barra lateral) */
+.session-card {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.session-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, .92);
+  font-size: .8rem;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.session-info span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, .7);
+  font-size: .78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .2s;
+}
+
+.session-logout:hover { color: #fca5a5; }
+
 /* WIZARD "QUANDO" — CARTÕES DE GATILHO (SELEÇÃO ÚNICA) */
 .trigger-option {
   display: flex;
