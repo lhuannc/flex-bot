@@ -143,11 +143,43 @@ if [ ! -f .env ]; then
   fail "Preencha o .env e execute o script novamente."
 fi
 
-TOKEN_VALUE="$(grep -E '^STOAT_TOKEN=' .env | head -1 | cut -d= -f2- | tr -d '[:space:]')"
+# Lê uma variável do .env de forma robusta: tolera aspas simples/duplas,
+# espaços ao redor do "=", linhas comentadas e terminadores CRLF (arquivo
+# editado no Windows). Um `cut` simples devolveria as aspas junto do valor.
+read_env() {
+  local chave="$1" linha valor
+  linha="$(grep -E "^[[:space:]]*${chave}[[:space:]]*=" .env 2>/dev/null | tail -1)"
+  [ -z "$linha" ] && return 0
+
+  valor="${linha#*=}"
+  valor="$(printf '%s' "$valor" | tr -d '\r')"
+  valor="$(printf '%s' "$valor" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  valor="$(printf '%s' "$valor" | sed -E "s/^\"(.*)\"$/\1/; s/^'(.*)'$/\1/")"
+  printf '%s' "$valor"
+}
+
+TOKEN_VALUE="$(read_env STOAT_TOKEN)"
 if [ -z "$TOKEN_VALUE" ] || [ "$TOKEN_VALUE" = "seu_token_aqui" ]; then
   fail "STOAT_TOKEN não configurado no .env ($PROJECT_DIR/.env). Preencha e rode de novo."
 fi
 ok ".env validado (STOAT_TOKEN presente)."
+
+# Estado da autenticação — decide se a exposição pública pode ser liberada
+AUTH_CLIENT_ID="$(read_env GOOGLE_CLIENT_ID)"
+AUTH_CLIENT_SECRET="$(read_env GOOGLE_CLIENT_SECRET)"
+AUTH_EMAILS="$(read_env ALLOWED_EMAILS)"
+AUTH_SECRET="$(read_env SESSION_SECRET)"
+
+if [ -n "$AUTH_CLIENT_ID" ] && [ -n "$AUTH_CLIENT_SECRET" ] && [ -n "$AUTH_EMAILS" ]; then
+  AUTH_ENABLED=1
+  ok "Login com Google configurado (autorizados: $AUTH_EMAILS)."
+  if [ -z "$AUTH_SECRET" ]; then
+    warn "SESSION_SECRET vazio — as sessões cairão a cada restart. Gere um: openssl rand -hex 32"
+  fi
+else
+  AUTH_ENABLED=0
+  warn "Login com Google NÃO configurado — o Dashboard ficará aberto a quem alcançar a porta."
+fi
 
 mkdir -p data
 ok "Diretório de dados pronto (./data — persiste fora do container)."
@@ -163,32 +195,105 @@ ok "Container iniciado."
 # 7. Health check do Dashboard
 # ----------------------------------------------------------------------------
 info "Aguardando o Dashboard responder em http://127.0.0.1:3000 ..."
+
+# Com o login ativo, /api/status responde 401 sem sessão — por isso o health
+# check considera QUALQUER resposta HTTP como "servidor no ar" (401 e 302
+# inclusive). Usar `curl -f` aqui daria falso negativo com autenticação ligada.
 HEALTH_OK=0
 for i in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:3000/api/status >/dev/null 2>&1; then HEALTH_OK=1; break; fi
+  CODIGO="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login.html 2>/dev/null || echo 000)"
+  if [ "$CODIGO" != "000" ]; then HEALTH_OK=1; break; fi
   sleep 2
 done
 
 if [ "$HEALTH_OK" -eq 1 ]; then
-  STATUS_JSON="$(curl -sf http://127.0.0.1:3000/api/status)"
-  ok "Dashboard no ar. Status: $STATUS_JSON"
-  case "$STATUS_JSON" in
-    *'"online":true'*) ok "Bot conectado ao Stoat." ;;
-    *) warn "Dashboard no ar, mas o bot ainda não conectou ao Stoat — confira o token e os logs: $SUDO docker logs -f flex-bot-app" ;;
-  esac
+  ok "Dashboard no ar (HTTP $CODIGO)."
+
+  # O status do bot só é legível sem autenticação quando o login está desligado
+  if [ "$AUTH_ENABLED" -eq 0 ]; then
+    STATUS_JSON="$(curl -s http://127.0.0.1:3000/api/status 2>/dev/null || echo '')"
+    case "$STATUS_JSON" in
+      *'"online":true'*) ok "Bot conectado ao Stoat." ;;
+      *) warn "Bot ainda não conectou ao Stoat — confira o token: $SUDO docker logs -f flex-bot-app" ;;
+    esac
+  else
+    # Com login ativo, confirmamos a conexão pelo log do container
+    if $SUDO docker logs --tail 40 flex-bot-app 2>&1 | grep -q "Bot conectado com sucesso"; then
+      ok "Bot conectado ao Stoat."
+    else
+      warn "Bot ainda não conectou ao Stoat — confira o token: $SUDO docker logs -f flex-bot-app"
+    fi
+  fi
 else
   $SUDO docker logs --tail 30 flex-bot-app || true
   fail "Dashboard não respondeu em 60s. Logs acima — verifique: $SUDO docker logs -f flex-bot-app"
 fi
 
 # ----------------------------------------------------------------------------
-# 8. Publicação na rede Tailscale (HTTPS)
+# 8. Decisão: acesso PRIVADO (tailnet) ou PÚBLICO (internet)
+# ----------------------------------------------------------------------------
+#
+#   Serve  = HTTPS apenas para dispositivos do SEU tailnet  (privado)
+#   Funnel = HTTPS aberto para a internet inteira           (público)
+#
+# A exposição pública só é liberada quando o login com Google está configurado.
+# Sem autenticação, publicar na internet entregaria o painel — e a base de
+# matrículas — a qualquer pessoa que descobrisse a URL.
+#
+# Modo não-interativo: defina EXPOSE_PUBLIC=yes (ou no) antes de rodar.
+# Sem TTY e sem a variável, o padrão é o modo PRIVADO.
+# ----------------------------------------------------------------------------
+EXPOR_PUBLICO=0
+ESCOLHA="${EXPOSE_PUBLIC:-}"
+
+if [ -z "$ESCOLHA" ]; then
+  if [ -t 0 ]; then
+    echo ""
+    echo "------------------------------------------------------------"
+    echo " Como o Dashboard deve ser acessado?"
+    echo ""
+    echo "   [1] PRIVADO  (padrão) — somente dispositivos conectados ao"
+    echo "                 seu Tailscale conseguem abrir o endereço."
+    echo ""
+    echo "   [2] PÚBLICO  — qualquer pessoa na internet alcança a URL."
+    echo "                 O login com Google continua exigido: só os"
+    echo "                 e-mails da allowlist entram no painel."
+    echo "------------------------------------------------------------"
+    printf "Escolha [1/2] (ENTER = 1, privado): "
+    read -r RESPOSTA </dev/tty || RESPOSTA=""
+    case "$RESPOSTA" in
+      2|p|P|pub*|s|S|y|Y) ESCOLHA="yes" ;;
+      *) ESCOLHA="no" ;;
+    esac
+  else
+    ESCOLHA="no"
+    info "Execução não-interativa: mantendo o acesso PRIVADO (use EXPOSE_PUBLIC=yes para expor)."
+  fi
+fi
+
+case "$ESCOLHA" in
+  yes|YES|y|Y|true|1|sim|SIM) EXPOR_PUBLICO=1 ;;
+  *) EXPOR_PUBLICO=0 ;;
+esac
+
+# Trava de segurança: sem login configurado, não há exposição pública
+if [ "$EXPOR_PUBLICO" -eq 1 ] && [ "$AUTH_ENABLED" -eq 0 ]; then
+  warn "EXPOSIÇÃO PÚBLICA RECUSADA: o login com Google não está configurado."
+  echo "       Sem autenticação, publicar na internet libera o painel e a base"
+  echo "       de matrículas para qualquer um. Preencha no .env:"
+  echo "         GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET e ALLOWED_EMAILS"
+  echo "       Seguindo em modo PRIVADO (apenas o seu tailnet)."
+  EXPOR_PUBLICO=0
+fi
+
+# ----------------------------------------------------------------------------
+# 9. Publicação na rede Tailscale (HTTPS)
 # ----------------------------------------------------------------------------
 TS_URL=""
 if command -v tailscale >/dev/null 2>&1; then
   if $SUDO tailscale status >/dev/null 2>&1; then
     TS_HOST="$($SUDO tailscale status --json 2>/dev/null | grep -o '"DNSName": *"[^"]*"' | head -1 | sed 's/.*"DNSName": *"\([^"]*\)".*/\1/' | sed 's/\.$//')"
-    info "Tailscale ativo (máquina: ${TS_HOST:-desconhecida}). Publicando o Dashboard via Tailscale Serve..."
+    info "Tailscale ativo (máquina: ${TS_HOST:-desconhecida})."
 
     if $SUDO tailscale serve --bg 3000 >/dev/null 2>&1; then
       TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
