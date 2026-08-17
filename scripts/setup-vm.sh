@@ -290,27 +290,68 @@ fi
 # 9. Publicação na rede Tailscale (HTTPS)
 # ----------------------------------------------------------------------------
 TS_URL=""
+MODO_ACESSO="não publicado"
 if command -v tailscale >/dev/null 2>&1; then
   if $SUDO tailscale status >/dev/null 2>&1; then
     TS_HOST="$($SUDO tailscale status --json 2>/dev/null | grep -o '"DNSName": *"[^"]*"' | head -1 | sed 's/.*"DNSName": *"\([^"]*\)".*/\1/' | sed 's/\.$//')"
     info "Tailscale ativo (máquina: ${TS_HOST:-desconhecida})."
 
-    if $SUDO tailscale serve --bg 3000 >/dev/null 2>&1; then
-      TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
-      ok "Dashboard publicado na sua rede Tailscale: $TS_URL"
-    elif $SUDO tailscale serve --bg --https=443 http://127.0.0.1:3000 >/dev/null 2>&1; then
-      TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
-      ok "Dashboard publicado na sua rede Tailscale: $TS_URL"
+    if [ "$EXPOR_PUBLICO" -eq 1 ]; then
+      # ---------------- FUNNEL: exposição pública na internet ----------------
+      # Sintaxe atual (Tailscale 1.52+): `tailscale funnel --bg <porta-local>`.
+      # A porta pública é sempre 443 (o Funnel só aceita 443, 8443 e 10000);
+      # o 3000 aqui é o alvo local. Versões 1.38–1.51 usam o formato antigo,
+      # tratado no fallback.
+      info "Publicando o Dashboard na INTERNET via Tailscale Funnel..."
+
+      if $SUDO tailscale funnel --bg --yes 3000 >/dev/null 2>&1 \
+         || $SUDO tailscale funnel --bg 3000 >/dev/null 2>&1; then
+        TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
+        ok "Dashboard PÚBLICO na internet: $TS_URL"
+        MODO_ACESSO="PÚBLICO (internet)"
+      elif $SUDO tailscale serve https / "http://localhost:3000" >/dev/null 2>&1 \
+           && $SUDO tailscale funnel 443 on >/dev/null 2>&1; then
+        # Fallback para a sintaxe de duas etapas das versões 1.38 a 1.51
+        TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
+        ok "Dashboard PÚBLICO na internet (sintaxe legada): $TS_URL"
+        MODO_ACESSO="PÚBLICO (internet)"
+      else
+        warn "Não foi possível ativar o Funnel automaticamente."
+        echo "       Causa mais comum: o atributo 'funnel' não está liberado na policy do tailnet."
+        echo "       Rode o comando abaixo — ele imprime um link para habilitar:"
+        echo "         sudo tailscale funnel --bg 3000"
+        echo ""
+        echo "       Ou adicione no tailnet policy file (admin console -> Access controls):"
+        echo '         "nodeAttrs": [{ "target": ["autogroup:member"], "attr": ["funnel"] }]'
+        echo "       Requer também MagicDNS e HTTPS Certificates habilitados."
+        info "Tentando publicar em modo privado como alternativa..."
+
+        if $SUDO tailscale serve --bg 3000 >/dev/null 2>&1; then
+          TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
+          ok "Dashboard publicado no seu tailnet (privado): $TS_URL"
+          MODO_ACESSO="PRIVADO (apenas o tailnet)"
+        fi
+      fi
     else
-      warn "Não foi possível ativar o Tailscale Serve automaticamente (versão antiga ou HTTPS desabilitado no tailnet)."
-      echo "       Tente manualmente:  sudo tailscale serve --bg 3000"
-      echo "       (Requer MagicDNS + HTTPS habilitados no painel do Tailscale.)"
+      # ---------------- SERVE: acesso restrito ao tailnet ----------------
+      info "Publicando o Dashboard no seu tailnet (acesso privado)..."
+
+      if $SUDO tailscale serve --bg 3000 >/dev/null 2>&1 \
+         || $SUDO tailscale serve --bg --https=443 http://127.0.0.1:3000 >/dev/null 2>&1; then
+        TS_URL="https://${TS_HOST:-<sua-maquina>.ts.net}"
+        ok "Dashboard publicado no seu tailnet: $TS_URL"
+        MODO_ACESSO="PRIVADO (apenas o tailnet)"
+      else
+        warn "Não foi possível ativar o Tailscale Serve automaticamente."
+        echo "       Tente manualmente:  sudo tailscale serve --bg 3000"
+        echo "       (Requer MagicDNS + HTTPS Certificates habilitados no tailnet.)"
+      fi
     fi
   else
-    warn "Tailscale instalado, mas não conectado. Rode: sudo tailscale up   — e depois: sudo tailscale serve --bg 3000"
+    warn "Tailscale instalado, mas não conectado. Rode: sudo tailscale up"
   fi
 else
-  warn "Tailscale não encontrado nesta VM. Instale (https://tailscale.com/download) e rode: sudo tailscale serve --bg 3000"
+  warn "Tailscale não encontrado nesta VM. Instale: https://tailscale.com/download"
 fi
 
 # ----------------------------------------------------------------------------
@@ -322,14 +363,30 @@ echo -e " ${C_GREEN}Instalação concluída!${C_OFF}"
 echo "============================================================"
 echo ""
 echo "  Dashboard (nesta VM):    http://127.0.0.1:3000"
-[ -n "$TS_URL" ] && echo "  Dashboard (rede Tailscale): $TS_URL"
+[ -n "$TS_URL" ] && echo "  Dashboard (Tailscale):   $TS_URL"
+echo "  Modo de acesso:          $MODO_ACESSO"
+if [ "$AUTH_ENABLED" -eq 1 ]; then
+  echo "  Login com Google:        ATIVO — autorizados: $AUTH_EMAILS"
+else
+  echo "  Login com Google:        DESATIVADO"
+fi
 echo ""
 echo "  Comandos úteis:"
 echo "    Logs ao vivo:      $SUDO docker logs -f flex-bot-app"
 echo "    Reiniciar:         $SUDO docker compose -f $PROJECT_DIR/docker-compose.yml restart"
-echo "    Atualizar versão:  cd $PROJECT_DIR && git pull && $SUDO docker compose up -d --build"
+echo "    Atualizar versão:  cd $PROJECT_DIR && git pull && $SUDO docker compose up -d --build --force-recreate"
 echo "    Backup dos dados:  cp -r $PROJECT_DIR/data /caminho/do/backup"
+echo "    Status da exposição: $SUDO tailscale funnel status"
+echo "    Tornar privado:    $SUDO tailscale funnel --bg 3000 off"
+echo "    Expor publicamente: $SUDO tailscale funnel --bg 3000"
 echo ""
-echo "  ⚠️ O Dashboard não tem autenticação: o acesso externo deve ser"
-echo "     SEMPRE pela rede Tailscale — a porta 3000 escuta só em 127.0.0.1."
+
+if [ "$EXPOR_PUBLICO" -eq 1 ] && [ "$AUTH_ENABLED" -eq 1 ]; then
+  echo "  🌐 O Dashboard está PÚBLICO na internet, protegido pelo login do Google."
+  echo "     Somente os e-mails da allowlist entram. Para revisar quem tem acesso,"
+  echo "     edite ALLOWED_EMAILS no .env e rode: $SUDO docker compose up -d --force-recreate"
+elif [ "$AUTH_ENABLED" -eq 0 ]; then
+  echo "  ⚠️ Sem login configurado: o acesso deve permanecer restrito ao tailnet."
+  echo "     A porta 3000 escuta apenas em 127.0.0.1 — não a exponha diretamente."
+fi
 echo ""
