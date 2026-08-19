@@ -80,6 +80,30 @@ O script [`scripts/setup-vm.sh`](../scripts/setup-vm.sh) é **idempotente** (pod
 6. Aguarda o health check do Dashboard e confere se o bot conectou ao Stoat;
 7. Publica o Dashboard na sua rede Tailscale via **Tailscale Serve** → `https://<sua-maquina>.ts.net`.
 
+### 🪟 2.6 Windows (Docker Desktop + Tailscale) — Instalação Automatizada
+
+Para rodar em uma máquina Windows, use o instalador em PowerShell:
+
+```powershell
+# Na pasta do projeto, PowerShell como Administrador:
+.\scripts\setup-windows.ps1
+
+# Sem perguntas, já expondo na internet:
+.\scripts\setup-windows.ps1 -ExposePublic yes
+```
+
+O [`scripts/setup-windows.ps1`](../scripts/setup-windows.ps1) é o equivalente do script Linux e faz as mesmas 10 etapas — com as diferenças da plataforma:
+
+| Etapa | Linux (`setup-vm.sh`) | Windows (`setup-windows.ps1`) |
+|---|---|---|
+| Elevação | `sudo` | verifica `WindowsBuiltInRole::Administrator` |
+| Docker | Docker Engine via `get.docker.com` | Docker Desktop via `winget` |
+| Tailscale | pacote da distribuição | `winget install tailscale.tailscale` |
+| Daemon | `systemctl enable --now docker` | confere se o Docker Desktop está *Running* |
+| Modo não-interativo | `EXPOSE_PUBLIC=yes` | `-ExposePublic yes` (ou a mesma variável) |
+
+Além disso, o script Windows **confere se o `PUBLIC_URL` cobre o hostname do Tailscale** e avisa quando não cobre — esse é o erro que produz `400 Host não autorizado` no login.
+
 ### 🔒 Segurança do Dashboard na VM
 
 O Dashboard **não possui autenticação**, então ele nunca deve escutar em interface pública — e o Docker **ignora o firewall UFW** em portas publicadas, o que torna esse erro fácil de cometer. Por isso o `docker-compose.yml` faz bind apenas em `127.0.0.1`:

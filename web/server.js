@@ -30,18 +30,30 @@ export function createWebServer() {
    */
   function resolveBaseUrl(req) {
     const host = (req.get('host') || '').toLowerCase();
-    const publicUrl = (process.env.PUBLIC_URL || '').trim().replace(/\/$/, '');
 
     if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) {
       return `http://${host}`;
     }
 
-    if (publicUrl) {
+    // PUBLIC_URL aceita VÁRIAS URLs separadas por vírgula — útil quando o mesmo
+    // Dashboard é alcançado por mais de um nome (ex.: duas máquinas do tailnet).
+    // O Host recebido precisa casar com uma delas; qualquer outro é recusado,
+    // porque um Host forjado desviaria o código de autorização do OAuth.
+    const candidatas = (process.env.PUBLIC_URL || '')
+      .split(',')
+      .map(u => u.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+
+    for (const candidata of candidatas) {
       try {
-        if (new URL(publicUrl).host.toLowerCase() === host) return publicUrl;
+        if (new URL(candidata).host.toLowerCase() === host) return candidata;
       } catch {
-        console.error(`[Auth] PUBLIC_URL inválida: "${publicUrl}"`);
+        console.error(`[Auth] PUBLIC_URL inválida, ignorando: "${candidata}"`);
       }
+    }
+
+    if (candidatas.length > 0) {
+      console.warn(`[Auth] Host "${host}" não está em PUBLIC_URL — acesso ao login recusado.`);
     }
 
     return null;
